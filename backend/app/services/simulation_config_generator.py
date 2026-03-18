@@ -583,7 +583,7 @@ Field descriptions:
 - off_peak_hours (int array): Off-peak hours, usually late night and dawn
 - morning_hours (int array): Morning hours
 - work_hours (int array): Work hours
-- reasoning (string): Brief explanation for this configuration"""
+- reasoning (string): Brief explanation for this configuration. **Write this field in Korean.**"""
 
         system_prompt = "You are a social media simulation expert. Return pure JSON format. Time configuration must follow Chinese lifestyle habits."
 
@@ -693,15 +693,15 @@ Example: Official announcements should be published by Official/University type,
 Return JSON format (no markdown):
 {{
     "hot_topics": ["keyword1", "keyword2", ...],
-    "narrative_direction": "<public opinion development direction description>",
+    "narrative_direction": "<public opinion development direction description in Korean>",
     "initial_posts": [
-        {{"content": "post content", "poster_type": "entity type (must select from available types)"}},
+        {{"content": "post content in Korean", "poster_type": "entity type (must select from available types)"}},
         ...
     ],
-    "reasoning": "<brief explanation>"
+    "reasoning": "<brief explanation in Korean>"
 }}"""
 
-        system_prompt = "You are a public opinion analysis expert. Return pure JSON format. Note that poster_type must exactly match available entity types."
+        system_prompt = "You are a public opinion analysis expert. Return pure JSON format. Note that poster_type must exactly match available entity types. The reasoning, narrative_direction, and all initial_posts content fields must be written in Korean."
 
         try:
             return self._call_llm_with_retry(prompt, system_prompt)
