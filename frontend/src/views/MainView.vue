@@ -15,7 +15,7 @@
             :class="{ active: viewMode === mode }"
             @click="viewMode = mode"
           >
-            {{ { graph: '图谱', split: '双栏', workbench: '工作台' }[mode] }}
+            {{ { graph: '그래프', split: '분할', workbench: '작업대' }[mode] }}
           </button>
         </div>
       </div>
@@ -48,7 +48,7 @@
 
       <!-- Right Panel: Step Components -->
       <div class="panel-wrapper right" :style="rightPanelStyle">
-        <!-- Step 1: 图谱构建 -->
+        <!-- Step 1: 그래프 구축 -->
         <Step1GraphBuild 
           v-if="currentStep === 1"
           :currentPhase="currentPhase"
@@ -59,7 +59,7 @@
           :systemLogs="systemLogs"
           @next-step="handleNextStep"
         />
-        <!-- Step 2: 环境搭建 -->
+        <!-- Step 2: 환경 구축 -->
         <Step2EnvSetup
           v-else-if="currentStep === 2"
           :projectData="projectData"
@@ -89,9 +89,9 @@ const router = useRouter()
 // Layout State
 const viewMode = ref('split') // graph | split | workbench
 
-// Step State
-const currentStep = ref(1) // 1: 图谱构建, 2: 环境搭建, 3: 开始模拟, 4: 报告生成, 5: 深度互动
-const stepNames = ['图谱构建', '环境搭建', '开始模拟', '报告生成', '深度互动']
+// 단계 상태
+const currentStep = ref(1) // 1: 그래프 구축, 2: 환경 구축, 3: 시뮬레이션 시작, 4: 보고서 생성, 5: 심층 상호작용
+const stepNames = ['그래프 구축', '환경 구축', '시뮬레이션 시작', '보고서 생성', '심층 상호작용']
 
 // Data State
 const currentProjectId = ref(route.params.projectId)
@@ -159,11 +159,11 @@ const toggleMaximize = (target) => {
 const handleNextStep = (params = {}) => {
   if (currentStep.value < 5) {
     currentStep.value++
-    addLog(`进入 Step ${currentStep.value}: ${stepNames[currentStep.value - 1]}`)
-    
-    // 如果是从 Step 2 进入 Step 3，记录模拟轮数配置
+    addLog(`Step ${currentStep.value} 진입: ${stepNames[currentStep.value - 1]}`)
+
+    // Step 2에서 Step 3으로 진입 시 시뮬레이션 라운드 수 설정 기록
     if (currentStep.value === 3 && params.maxRounds) {
-      addLog(`自定义模拟轮数: ${params.maxRounds} 轮`)
+      addLog(`사용자 지정 시뮬레이션 라운드 수: ${params.maxRounds}회`)
     }
   }
 }
@@ -171,7 +171,7 @@ const handleNextStep = (params = {}) => {
 const handleGoBack = () => {
   if (currentStep.value > 1) {
     currentStep.value--
-    addLog(`返回 Step ${currentStep.value}: ${stepNames[currentStep.value - 1]}`)
+    addLog(`Step ${currentStep.value}로 돌아가기: ${stepNames[currentStep.value - 1]}`)
   }
 }
 

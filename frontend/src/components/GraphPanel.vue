@@ -2,24 +2,24 @@
   <div class="graph-panel">
     <div class="panel-header">
       <span class="panel-title">Graph Relationship Visualization</span>
-      <!-- 顶部工具栏 (Internal Top Right) -->
+      <!-- 상단 도구 모음 (내부 우측 상단) -->
       <div class="header-tools">
-        <button class="tool-btn" @click="$emit('refresh')" :disabled="loading" title="刷新图谱">
+        <button class="tool-btn" @click="$emit('refresh')" :disabled="loading" title="그래프 새로고침">
           <span class="icon-refresh" :class="{ 'spinning': loading }">↻</span>
           <span class="btn-text">Refresh</span>
         </button>
-        <button class="tool-btn" @click="$emit('toggle-maximize')" title="最大化/还原">
+        <button class="tool-btn" @click="$emit('toggle-maximize')" title="최대화/복원">
           <span class="icon-maximize">⛶</span>
         </button>
       </div>
     </div>
     
     <div class="graph-container" ref="graphContainer">
-      <!-- 图谱可视化 -->
+      <!-- 그래프 시각화 -->
       <div v-if="graphData" class="graph-view">
         <svg ref="graphSvg" class="graph-svg"></svg>
-        
-        <!-- 构建中/模拟中提示 -->
+
+        <!-- 구축 중/시뮬레이션 중 안내 -->
         <div v-if="currentPhase === 1 || isSimulating" class="graph-building-hint">
           <div class="memory-icon-wrapper">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="memory-icon">
@@ -27,10 +27,10 @@
               <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-4.04z" />
             </svg>
           </div>
-          {{ isSimulating ? 'GraphRAG长短期记忆实时更新中' : '实时更新中...' }}
+          {{ isSimulating ? 'GraphRAG 장단기 기억 실시간 업데이트 중' : '실시간 업데이트 중...' }}
         </div>
         
-        <!-- 模拟结束后的提示 -->
+        <!-- 시뮬레이션 종료 후 안내 -->
         <div v-if="showSimulationFinishedHint" class="graph-building-hint finished-hint">
           <div class="hint-icon-wrapper">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="hint-icon">
@@ -39,8 +39,8 @@
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
           </div>
-          <span class="hint-text">还有少量内容处理中，建议稍后手动刷新图谱</span>
-          <button class="hint-close-btn" @click="dismissFinishedHint" title="关闭提示">
+          <span class="hint-text">일부 콘텐츠 처리 중, 잠시 후 수동으로 그래프를 새로고침하는 것을 권장합니다</span>
+          <button class="hint-close-btn" @click="dismissFinishedHint" title="안내 닫기">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -48,7 +48,7 @@
           </button>
         </div>
         
-        <!-- 节点/边详情面板 -->
+        <!-- 노드/엣지 상세 패널 -->
         <div v-if="selectedItem" class="detail-panel">
           <div class="detail-panel-header">
             <span class="detail-title">{{ selectedItem.type === 'node' ? 'Node Details' : 'Relationship' }}</span>
@@ -58,7 +58,7 @@
             <button class="detail-close" @click="closeDetailPanel">×</button>
           </div>
           
-          <!-- 节点详情 -->
+          <!-- 노드 상세 -->
           <div v-if="selectedItem.type === 'node'" class="detail-content">
             <div class="detail-row">
               <span class="detail-label">Name:</span>
@@ -101,9 +101,9 @@
             </div>
           </div>
           
-          <!-- 边详情 -->
+          <!-- 엣지 상세 -->
           <div v-else class="detail-content">
-            <!-- 自环组详情 -->
+            <!-- 자기 루프 그룹 상세 -->
             <template v-if="selectedItem.data.isSelfLoopGroup">
               <div class="edge-relation-header self-loop-header">
                 {{ selectedItem.data.source_name }} - Self Relations
@@ -154,7 +154,7 @@
               </div>
             </template>
             
-            <!-- 普通边详情 -->
+            <!-- 일반 엣지 상세 -->
             <template v-else>
               <div class="edge-relation-header">
                 {{ selectedItem.data.source_name }} → {{ selectedItem.data.name || 'RELATED_TO' }} → {{ selectedItem.data.target_name }}
@@ -200,20 +200,20 @@
         </div>
       </div>
       
-      <!-- 加载状态 -->
+      <!-- 로딩 상태 -->
       <div v-else-if="loading" class="graph-state">
         <div class="loading-spinner"></div>
-        <p>图谱数据加载中...</p>
+        <p>그래프 데이터 로딩 중...</p>
       </div>
-      
-      <!-- 等待/空状态 -->
+
+      <!-- 대기/빈 상태 -->
       <div v-else class="graph-state">
         <div class="empty-icon">❖</div>
-        <p class="empty-text">等待本体生成...</p>
+        <p class="empty-text">온톨로지 생성 대기 중...</p>
       </div>
     </div>
 
-    <!-- 底部图例 (Bottom Left) -->
+    <!-- 하단 범례 (좌측 하단) -->
     <div v-if="graphData && entityTypes.length" class="graph-legend">
       <span class="legend-title">Entity Types</span>
       <div class="legend-items">
@@ -224,7 +224,7 @@
       </div>
     </div>
     
-    <!-- 显示边标签开关 -->
+    <!-- 엣지 레이블 표시 토글 -->
     <div v-if="graphData" class="edge-labels-toggle">
       <label class="toggle-switch">
         <input type="checkbox" v-model="showEdgeLabels" />
@@ -251,26 +251,26 @@ const emit = defineEmits(['refresh', 'toggle-maximize'])
 const graphContainer = ref(null)
 const graphSvg = ref(null)
 const selectedItem = ref(null)
-const showEdgeLabels = ref(true) // 默认显示边标签
-const expandedSelfLoops = ref(new Set()) // 展开的自环项
-const showSimulationFinishedHint = ref(false) // 模拟结束后的提示
-const wasSimulating = ref(false) // 追踪之前是否在模拟中
+const showEdgeLabels = ref(true) // 기본적으로 엣지 레이블 표시
+const expandedSelfLoops = ref(new Set()) // 펼쳐진 자기 루프 항목
+const showSimulationFinishedHint = ref(false) // 시뮬레이션 종료 후 안내
+const wasSimulating = ref(false) // 이전에 시뮬레이션 중이었는지 추적
 
-// 关闭模拟结束提示
+// 시뮬레이션 종료 안내 닫기
 const dismissFinishedHint = () => {
   showSimulationFinishedHint.value = false
 }
 
-// 监听 isSimulating 变化，检测模拟结束
+// isSimulating 변경 감시, 시뮬레이션 종료 감지
 watch(() => props.isSimulating, (newValue, oldValue) => {
   if (wasSimulating.value && !newValue) {
-    // 从模拟中变为非模拟状态，显示结束提示
+    // 시뮬레이션 중에서 비시뮬레이션 상태로 변경, 종료 안내 표시
     showSimulationFinishedHint.value = true
   }
   wasSimulating.value = newValue
 }, { immediate: true })
 
-// 切换自环项展开/折叠状态
+// 자기 루프 항목 펼침/접힘 상태 전환
 const toggleSelfLoop = (id) => {
   const newSet = new Set(expandedSelfLoops.value)
   if (newSet.has(id)) {
@@ -281,11 +281,11 @@ const toggleSelfLoop = (id) => {
   expandedSelfLoops.value = newSet
 }
 
-// 计算实体类型用于图例
+// 범례용 엔티티 유형 계산
 const entityTypes = computed(() => {
   if (!props.graphData?.nodes) return []
   const typeMap = {}
-  // 美观的颜色调色板
+  // 깔끔한 색상 팔레트
   const colors = ['#FF6B35', '#004E89', '#7B2D8E', '#1A936F', '#C5283D', '#E9724C', '#3498db', '#9b59b6', '#27ae60', '#f39c12']
   
   props.graphData.nodes.forEach(node => {
@@ -298,7 +298,7 @@ const entityTypes = computed(() => {
   return Object.values(typeMap)
 })
 
-// 格式化时间
+// 시간 포맷
 const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
   try {
@@ -318,7 +318,7 @@ const formatDateTime = (dateStr) => {
 
 const closeDetailPanel = () => {
   selectedItem.value = null
-  expandedSelfLoops.value = new Set() // 重置展开状态
+  expandedSelfLoops.value = new Set() // 펼침 상태 초기화
 }
 
 let currentSimulation = null
@@ -328,7 +328,7 @@ let linkLabelBgRef = null
 const renderGraph = () => {
   if (!graphSvg.value || !props.graphData) return
   
-  // 停止之前的仿真
+  // 이전 시뮬레이션 정지
   if (currentSimulation) {
     currentSimulation.stop()
   }
@@ -362,16 +362,16 @@ const renderGraph = () => {
   
   const nodeIds = new Set(nodes.map(n => n.id))
   
-  // 处理边数据，计算同一对节点间的边数量和索引
+  // 엣지 데이터 처리, 같은 노드 쌍 간의 엣지 수 및 인덱스 계산
   const edgePairCount = {}
-  const selfLoopEdges = {} // 按节点分组的自环边
+  const selfLoopEdges = {} // 노드별로 그룹화된 자기 루프 엣지
   const tempEdges = edgesData
     .filter(e => nodeIds.has(e.source_node_uuid) && nodeIds.has(e.target_node_uuid))
-  
-  // 统计每对节点之间的边数量，收集自环边
+
+  // 각 노드 쌍 간 엣지 수 통계, 자기 루프 엣지 수집
   tempEdges.forEach(e => {
     if (e.source_node_uuid === e.target_node_uuid) {
-      // 自环 - 收集到数组中
+      // 자기 루프 - 배열에 수집
       if (!selfLoopEdges[e.source_node_uuid]) {
         selfLoopEdges[e.source_node_uuid] = []
       }
@@ -385,10 +385,10 @@ const renderGraph = () => {
       edgePairCount[pairKey] = (edgePairCount[pairKey] || 0) + 1
     }
   })
-  
-  // 记录当前处理到每对节点的第几条边
+
+  // 각 노드 쌍에서 현재 처리 중인 엣지 인덱스 기록
   const edgePairIndex = {}
-  const processedSelfLoopNodes = new Set() // 已处理的自环节点
+  const processedSelfLoopNodes = new Set() // 이미 처리된 자기 루프 노드
   
   const edges = []
   
@@ -396,9 +396,9 @@ const renderGraph = () => {
     const isSelfLoop = e.source_node_uuid === e.target_node_uuid
     
     if (isSelfLoop) {
-      // 自环边 - 每个节点只添加一条合并的自环
+      // 자기 루프 엣지 - 각 노드에 하나의 합쳐진 자기 루프만 추가
       if (processedSelfLoopNodes.has(e.source_node_uuid)) {
-        return // 已处理过，跳过
+        return // 이미 처리됨, 건너뜀
       }
       processedSelfLoopNodes.add(e.source_node_uuid)
       
@@ -417,7 +417,7 @@ const renderGraph = () => {
           source_name: nodeName,
           target_name: nodeName,
           selfLoopCount: allSelfLoops.length,
-          selfLoopEdges: allSelfLoops // 存储所有自环边的详细信息
+          selfLoopEdges: allSelfLoops // 모든 자기 루프 엣지의 상세 정보 저장
         }
       })
       return
@@ -428,19 +428,19 @@ const renderGraph = () => {
     const currentIndex = edgePairIndex[pairKey] || 0
     edgePairIndex[pairKey] = currentIndex + 1
     
-    // 判断边的方向是否与标准化方向一致（源UUID < 目标UUID）
+    // 엣지 방향이 표준화된 방향과 일치하는지 판단 (소스 UUID < 대상 UUID)
     const isReversed = e.source_node_uuid > e.target_node_uuid
     
-    // 计算曲率：多条边时分散开，单条边为直线
+    // 곡률 계산: 엣지가 여러 개일 때 분산, 단일 엣지는 직선
     let curvature = 0
     if (totalCount > 1) {
-      // 均匀分布曲率，确保明显区分
-      // 曲率范围根据边数量增加，边越多曲率范围越大
+      // 곡률을 균등하게 분포하여 명확히 구분
+      // 곡률 범위는 엣지 수에 따라 증가, 엣지가 많을수록 범위 확대
       const curvatureRange = Math.min(1.2, 0.6 + totalCount * 0.15)
       curvature = ((currentIndex / (totalCount - 1)) - 0.5) * curvatureRange * 2
-      
-      // 如果边的方向与标准化方向相反，翻转曲率
-      // 这样确保所有边在同一参考系下分布，不会因方向不同而重叠
+
+      // 엣지 방향이 표준화된 방향과 반대인 경우 곡률 반전
+      // 모든 엣지가 동일한 참조 시스템에 분포하도록 보장하여 방향 차이로 인한 겹침 방지
       if (isReversed) {
         curvature = -curvature
       }
@@ -468,11 +468,11 @@ const renderGraph = () => {
   entityTypes.value.forEach(t => colorMap[t.name] = t.color)
   const getColor = (type) => colorMap[type] || '#999'
 
-  // Simulation - 根据边数量动态调整节点间距
+  // Simulation - 엣지 수에 따라 노드 간격 동적 조정
   const simulation = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(edges).id(d => d.id).distance(d => {
-      // 根据这对节点之间的边数量动态调整距离
-      // 基础距离 150，每多一条边增加 40
+      // 노드 쌍 사이의 엣지 수에 따라 거리 동적 조정
+      // 기본 거리 150, 엣지 하나 추가될 때마다 40 증가
       const baseDistance = 150
       const edgeCount = d.pairTotal || 1
       return baseDistance + (edgeCount - 1) * 50
@@ -480,7 +480,7 @@ const renderGraph = () => {
     .force('charge', d3.forceManyBody().strength(-400))
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collide', d3.forceCollide(50))
-    // 添加向中心的引力，让独立的节点群聚集到中心区域
+    // 중심 방향 인력 추가, 독립된 노드 그룹이 중심 영역으로 모이도록
     .force('x', d3.forceX(width / 2).strength(0.04))
     .force('y', d3.forceY(height / 2).strength(0.04))
   
@@ -493,39 +493,39 @@ const renderGraph = () => {
     g.attr('transform', event.transform)
   }))
 
-  // Links - 使用 path 支持曲线
+  // Links - path를 사용하여 곡선 지원
   const linkGroup = g.append('g').attr('class', 'links')
-  
-  // 计算曲线路径
+
+  // 곡선 경로 계산
   const getLinkPath = (d) => {
     const sx = d.source.x, sy = d.source.y
     const tx = d.target.x, ty = d.target.y
     
-    // 检测自环
+    // 자기 루프 감지
     if (d.isSelfLoop) {
-      // 自环：绘制一个圆弧从节点出发再返回
+      // 자기 루프: 노드에서 출발해 돌아오는 원호 그리기
       const loopRadius = 30
-      // 从节点右侧出发，绕一圈回来
-      const x1 = sx + 8  // 起点偏移
+      // 노드 오른쪽에서 출발해 한 바퀴 돌아옴
+      const x1 = sx + 8  // 시작점 오프셋
       const y1 = sy - 4
-      const x2 = sx + 8  // 终点偏移
+      const x2 = sx + 8  // 끝점 오프셋
       const y2 = sy + 4
-      // 使用圆弧绘制自环（sweep-flag=1 顺时针）
+      // 원호로 자기 루프 그리기 (sweep-flag=1 시계방향)
       return `M${x1},${y1} A${loopRadius},${loopRadius} 0 1,1 ${x2},${y2}`
     }
-    
+
     if (d.curvature === 0) {
-      // 直线
+      // 직선
       return `M${sx},${sy} L${tx},${ty}`
     }
-    
-    // 计算曲线控制点 - 根据边数量和距离动态调整
+
+    // 곡선 제어점 계산 - 엣지 수와 거리에 따라 동적 조정
     const dx = tx - sx, dy = ty - sy
     const dist = Math.sqrt(dx * dx + dy * dy)
-    // 垂直于连线方向的偏移，根据距离比例计算，保证曲线明显可见
-    // 边越多，偏移量占距离的比例越大
+    // 연결선 방향에 수직인 오프셋, 거리 비율로 계산하여 곡선이 명확히 보이도록 보장
+    // 엣지가 많을수록 오프셋이 거리 비율에서 차지하는 비중 증가
     const pairTotal = d.pairTotal || 1
-    const offsetRatio = 0.25 + pairTotal * 0.05 // 基础25%，每多一条边增加5%
+    const offsetRatio = 0.25 + pairTotal * 0.05 // 기본 25%, 엣지 하나마다 5% 추가
     const baseOffset = Math.max(35, dist * offsetRatio)
     const offsetX = -dy / dist * d.curvature * baseOffset
     const offsetY = dx / dist * d.curvature * baseOffset
@@ -535,22 +535,22 @@ const renderGraph = () => {
     return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`
   }
   
-  // 计算曲线中点（用于标签定位）
+  // 곡선 중점 계산 (레이블 위치 지정용)
   const getLinkMidpoint = (d) => {
     const sx = d.source.x, sy = d.source.y
     const tx = d.target.x, ty = d.target.y
-    
-    // 检测自环
+
+    // 자기 루프 감지
     if (d.isSelfLoop) {
-      // 自环标签位置：节点右侧
+      // 자기 루프 레이블 위치: 노드 오른쪽
       return { x: sx + 70, y: sy }
     }
-    
+
     if (d.curvature === 0) {
       return { x: (sx + tx) / 2, y: (sy + ty) / 2 }
     }
-    
-    // 二次贝塞尔曲线的中点 t=0.5
+
+    // 이차 베지어 곡선의 중점 t=0.5
     const dx = tx - sx, dy = ty - sy
     const dist = Math.sqrt(dx * dx + dy * dy)
     const pairTotal = d.pairTotal || 1
@@ -560,8 +560,8 @@ const renderGraph = () => {
     const offsetY = dx / dist * d.curvature * baseOffset
     const cx = (sx + tx) / 2 + offsetX
     const cy = (sy + ty) / 2 + offsetY
-    
-    // 二次贝塞尔曲线公式 B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2, t=0.5
+
+    // 이차 베지어 곡선 공식 B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2, t=0.5
     const midX = 0.25 * sx + 0.5 * cx + 0.25 * tx
     const midY = 0.25 * sy + 0.5 * cy + 0.25 * ty
     
@@ -577,11 +577,11 @@ const renderGraph = () => {
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       event.stopPropagation()
-      // 重置之前选中边的样式
+      // 이전 선택 엣지 스타일 초기화
       linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
       linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
       linkLabels.attr('fill', '#666')
-      // 高亮当前选中的边
+      // 현재 선택 엣지 강조
       d3.select(event.target).attr('stroke', '#3498db').attr('stroke-width', 3)
       
       selectedItem.value = {
@@ -590,7 +590,7 @@ const renderGraph = () => {
       }
     })
 
-  // Link labels background (白色背景使文字更清晰)
+  // Link labels background (흰색 배경으로 텍스트 가독성 향상)
   const linkLabelBg = linkGroup.selectAll('rect')
     .data(edges)
     .enter().append('rect')
@@ -605,7 +605,7 @@ const renderGraph = () => {
       linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
       linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
       linkLabels.attr('fill', '#666')
-      // 高亮对应的边
+      // 해당 엣지 강조
       link.filter(l => l === d).attr('stroke', '#3498db').attr('stroke-width', 3)
       d3.select(event.target).attr('fill', 'rgba(52, 152, 219, 0.1)')
       
@@ -633,7 +633,7 @@ const renderGraph = () => {
       linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
       linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
       linkLabels.attr('fill', '#666')
-      // 高亮对应的边
+      // 해당 엣지 강조
       link.filter(l => l === d).attr('stroke', '#3498db').attr('stroke-width', 3)
       d3.select(event.target).attr('fill', '#3498db')
       
@@ -643,7 +643,7 @@ const renderGraph = () => {
       }
     })
   
-  // 保存引用供外部控制显隐
+  // 외부에서 표시/숨김 제어를 위해 참조 저장
   linkLabelsRef = linkLabels
   linkLabelBgRef = linkLabelBg
 
@@ -661,7 +661,7 @@ const renderGraph = () => {
     .style('cursor', 'pointer')
     .call(d3.drag()
       .on('start', (event, d) => {
-        // 只记录位置，不重启仿真（区分点击和拖拽）
+        // 위치만 기록하고 시뮬레이션 재시작하지 않음 (클릭과 드래그 구분)
         d.fx = d.x
         d.fy = d.y
         d._dragStartX = event.x
@@ -669,24 +669,24 @@ const renderGraph = () => {
         d._isDragging = false
       })
       .on('drag', (event, d) => {
-        // 检测是否真正开始拖拽（移动超过阈值）
+        // 실제 드래그 시작 여부 감지 (임계값 초과 이동)
         const dx = event.x - d._dragStartX
         const dy = event.y - d._dragStartY
         const distance = Math.sqrt(dx * dx + dy * dy)
-        
+
         if (!d._isDragging && distance > 3) {
-          // 首次检测到真正拖拽，才重启仿真
+          // 실제 드래그가 처음 감지되었을 때만 시뮬레이션 재시작
           d._isDragging = true
           simulation.alphaTarget(0.3).restart()
         }
-        
+
         if (d._isDragging) {
           d.fx = event.x
           d.fy = event.y
         }
       })
       .on('end', (event, d) => {
-        // 只有真正拖拽过才让仿真逐渐停止
+        // 실제로 드래그한 경우에만 시뮬레이션 점진적 종료
         if (d._isDragging) {
           simulation.alphaTarget(0)
         }
@@ -697,12 +697,12 @@ const renderGraph = () => {
     )
     .on('click', (event, d) => {
       event.stopPropagation()
-      // 重置所有节点样式
+      // 모든 노드 스타일 초기화
       node.attr('stroke', '#fff').attr('stroke-width', 2.5)
       linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
-      // 高亮选中节点
+      // 선택한 노드 강조
       d3.select(event.target).attr('stroke', '#E91E63').attr('stroke-width', 4)
-      // 高亮与此节点相连的边
+      // 이 노드와 연결된 엣지 강조
       link.filter(l => l.source.id === d.id || l.target.id === d.id)
         .attr('stroke', '#E91E63')
         .attr('stroke-width', 2.5)
@@ -739,19 +739,19 @@ const renderGraph = () => {
     .style('font-family', 'system-ui, sans-serif')
 
   simulation.on('tick', () => {
-    // 更新曲线路径
+    // 곡선 경로 업데이트
     link.attr('d', d => getLinkPath(d))
-    
-    // 更新边标签位置（无旋转，水平显示更清晰）
+
+    // 엣지 레이블 위치 업데이트 (회전 없이 수평 표시가 더 가독성 좋음)
     linkLabels.each(function(d) {
       const mid = getLinkMidpoint(d)
       d3.select(this)
         .attr('x', mid.x)
         .attr('y', mid.y)
-        .attr('transform', '') // 移除旋转，保持水平
+        .attr('transform', '') // 회전 제거, 수평 유지
     })
-    
-    // 更新边标签背景
+
+    // 엣지 레이블 배경 업데이트
     linkLabelBg.each(function(d, i) {
       const mid = getLinkMidpoint(d)
       const textEl = linkLabels.nodes()[i]
@@ -761,7 +761,7 @@ const renderGraph = () => {
         .attr('y', mid.y - bbox.height / 2 - 2)
         .attr('width', bbox.width + 8)
         .attr('height', bbox.height + 4)
-        .attr('transform', '') // 移除旋转
+        .attr('transform', '') // 회전 제거
     })
 
     node
@@ -773,7 +773,7 @@ const renderGraph = () => {
       .attr('y', d => d.y)
   })
   
-  // 点击空白处关闭详情面板
+  // 빈 곳 클릭 시 상세 패널 닫기
   svg.on('click', () => {
     selectedItem.value = null
     node.attr('stroke', '#fff').attr('stroke-width', 2.5)
@@ -787,7 +787,7 @@ watch(() => props.graphData, () => {
   nextTick(renderGraph)
 }, { deep: true })
 
-// 监听边标签显示开关
+// 엣지 레이블 표시 토글 감시
 watch(showEdgeLabels, (newVal) => {
   if (linkLabelsRef) {
     linkLabelsRef.style('display', newVal ? 'block' : 'none')
@@ -1250,7 +1250,7 @@ input:checked + .slider:before {
   50% { opacity: 1; transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.6)); }
 }
 
-/* 模拟结束后的提示样式 */
+/* 시뮬레이션 종료 후 안내 스타일 */
 .graph-building-hint.finished-hint {
   background: rgba(0, 0, 0, 0.65);
   border: 1px solid rgba(255, 255, 255, 0.1);

@@ -2,7 +2,7 @@
 .DS_Store
 Thumbs.db
 
-# 环境变量（保护敏感信息）
+# 환경 변수 (민감한 정보 보호)
 .env
 .env.local
 .env.*.local
@@ -36,7 +36,7 @@ yarn-error.log*
 *.swp
 *.swo
 
-# 测试
+# 테스트
 .pytest_cache/
 .coverage
 htmlcov/
@@ -45,16 +45,16 @@ htmlcov/
 .cursor/
 .claude/
 
-# 文档与测试程序
+# 문서 및 테스트 프로그램
 mydoc/
 mytest/
 
-# 日志文件
+# 로그 파일
 backend/logs/
 *.log
 
-# 上传文件
+# 업로드 파일
 backend/uploads/
 
-# Docker 数据
+# Docker 데이터
 data/

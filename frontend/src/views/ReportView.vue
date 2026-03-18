@@ -15,7 +15,7 @@
             :class="{ active: viewMode === mode }"
             @click="viewMode = mode"
           >
-            {{ { graph: '图谱', split: '双栏', workbench: '工作台' }[mode] }}
+            {{ { graph: '그래프', split: '분할', workbench: '작업대' }[mode] }}
           </button>
         </div>
       </div>
@@ -23,7 +23,7 @@
       <div class="header-right">
         <div class="workflow-step">
           <span class="step-num">Step 4/5</span>
-          <span class="step-name">报告生成</span>
+          <span class="step-name">보고서 생성</span>
         </div>
         <div class="step-divider"></div>
         <span class="status-indicator" :class="statusClass">
@@ -47,7 +47,7 @@
         />
       </div>
 
-      <!-- Right Panel: Step4 报告生成 -->
+      <!-- 오른쪽 패널: Step4 보고서 생성 -->
       <div class="panel-wrapper right" :style="rightPanelStyle">
         <Step4Report
           :reportId="currentReportId"
@@ -78,7 +78,7 @@ const props = defineProps({
   reportId: String
 })
 
-// Layout State - 默认切换到工作台视角
+// 레이아웃 상태 - 기본적으로 작업대 뷰로 전환
 const viewMode = ref('workbench')
 
 // Data State
@@ -139,28 +139,28 @@ const toggleMaximize = (target) => {
 // --- Data Logic ---
 const loadReportData = async () => {
   try {
-    addLog(`加载报告数据: ${currentReportId.value}`)
-    
-    // 获取 report 信息以获取 simulation_id
+    addLog(`보고서 데이터 로드: ${currentReportId.value}`)
+
+    // simulation_id 조회를 위해 report 정보 가져오기
     const reportRes = await getReport(currentReportId.value)
     if (reportRes.success && reportRes.data) {
       const reportData = reportRes.data
       simulationId.value = reportData.simulation_id
-      
+
       if (simulationId.value) {
-        // 获取 simulation 信息
+        // simulation 정보 가져오기
         const simRes = await getSimulation(simulationId.value)
         if (simRes.success && simRes.data) {
           const simData = simRes.data
-          
-          // 获取 project 信息
+
+          // project 정보 가져오기
           if (simData.project_id) {
             const projRes = await getProject(simData.project_id)
             if (projRes.success && projRes.data) {
               projectData.value = projRes.data
-              addLog(`项目加载成功: ${projRes.data.project_id}`)
-              
-              // 获取 graph 数据
+              addLog(`프로젝트 로드 성공: ${projRes.data.project_id}`)
+
+              // graph 데이터 가져오기
               if (projRes.data.graph_id) {
                 await loadGraph(projRes.data.graph_id)
               }
@@ -169,10 +169,10 @@ const loadReportData = async () => {
         }
       }
     } else {
-      addLog(`获取报告信息失败: ${reportRes.error || '未知错误'}`)
+      addLog(`보고서 정보 조회 실패: ${reportRes.error || '알 수 없는 오류'}`)
     }
   } catch (err) {
-    addLog(`加载异常: ${err.message}`)
+    addLog(`로드 중 예외 발생: ${err.message}`)
   }
 }
 
@@ -183,10 +183,10 @@ const loadGraph = async (graphId) => {
     const res = await getGraphData(graphId)
     if (res.success) {
       graphData.value = res.data
-      addLog('图谱数据加载成功')
+      addLog('그래프 데이터 로드 성공')
     }
   } catch (err) {
-    addLog(`图谱加载失败: ${err.message}`)
+    addLog(`그래프 로드 실패: ${err.message}`)
   } finally {
     graphLoading.value = false
   }
@@ -207,7 +207,7 @@ watch(() => route.params.reportId, (newId) => {
 }, { immediate: true })
 
 onMounted(() => {
-  addLog('ReportView 初始化')
+  addLog('ReportView 초기화')
   loadReportData()
 })
 </script>

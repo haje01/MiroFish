@@ -1,11 +1,11 @@
 """
-模拟IPC通信模块
-用于Flask后端和模拟脚本之间的进程间通信
+시뮬레이션 IPC 통신 모듈
+Flask 백엔드와 시뮬레이션 스크립트 간의 프로세스 간 통신에 사용
 
-通过文件系统实现简单的命令/响应模式：
-1. Flask写入命令到 commands/ 目录
-2. 模拟脚本轮询命令目录，执行命令并写入响应到 responses/ 目录
-3. Flask轮询响应目录获取结果
+파일 시스템을 통해 간단한 명령/응답 패턴을 구현:
+1. Flask가 commands/ 디렉토리에 명령 파일 작성
+2. 시뮬레이션 스크립트가 명령 디렉토리를 폴링하고, 명령을 실행한 후 responses/ 디렉토리에 응답 파일 작성
+3. Flask가 응답 디렉토리를 폴링하여 결과를 가져옴
 """
 
 import os
@@ -23,14 +23,14 @@ logger = get_logger('mirofish.simulation_ipc')
 
 
 class CommandType(str, Enum):
-    """命令类型"""
-    INTERVIEW = "interview"           # 单个Agent采访
-    BATCH_INTERVIEW = "batch_interview"  # 批量采访
-    CLOSE_ENV = "close_env"           # 关闭环境
+    """명령 타입"""
+    INTERVIEW = "interview"           # 단일 Agent 인터뷰
+    BATCH_INTERVIEW = "batch_interview"  # 배치 인터뷰
+    CLOSE_ENV = "close_env"           # 환경 종료
 
 
 class CommandStatus(str, Enum):
-    """命令状态"""
+    """명령 상태"""
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -39,12 +39,12 @@ class CommandStatus(str, Enum):
 
 @dataclass
 class IPCCommand:
-    """IPC命令"""
+    """IPC 명령"""
     command_id: str
     command_type: CommandType
     args: Dict[str, Any]
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "command_id": self.command_id,
@@ -52,7 +52,7 @@ class IPCCommand:
             "args": self.args,
             "timestamp": self.timestamp
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'IPCCommand':
         return cls(
@@ -65,13 +65,13 @@ class IPCCommand:
 
 @dataclass
 class IPCResponse:
-    """IPC响应"""
+    """IPC 응답"""
     command_id: str
     status: CommandStatus
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "command_id": self.command_id,
@@ -80,7 +80,7 @@ class IPCResponse:
             "error": self.error,
             "timestamp": self.timestamp
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'IPCResponse':
         return cls(
@@ -94,26 +94,26 @@ class IPCResponse:
 
 class SimulationIPCClient:
     """
-    模拟IPC客户端（Flask端使用）
-    
-    用于向模拟进程发送命令并等待响应
+    시뮬레이션 IPC 클라이언트 (Flask 측에서 사용)
+
+    시뮬레이션 프로세스에 명령을 보내고 응답을 기다림
     """
-    
+
     def __init__(self, simulation_dir: str):
         """
-        初始化IPC客户端
-        
+        IPC 클라이언트 초기화
+
         Args:
-            simulation_dir: 模拟数据目录
+            simulation_dir: 시뮬레이션 데이터 디렉토리
         """
         self.simulation_dir = simulation_dir
         self.commands_dir = os.path.join(simulation_dir, "ipc_commands")
         self.responses_dir = os.path.join(simulation_dir, "ipc_responses")
-        
-        # 确保目录存在
+
+        # 디렉토리 존재 확인
         os.makedirs(self.commands_dir, exist_ok=True)
         os.makedirs(self.responses_dir, exist_ok=True)
-    
+
     def send_command(
         self,
         command_type: CommandType,
@@ -122,19 +122,19 @@ class SimulationIPCClient:
         poll_interval: float = 0.5
     ) -> IPCResponse:
         """
-        发送命令并等待响应
-        
+        명령 전송 및 응답 대기
+
         Args:
-            command_type: 命令类型
-            args: 命令参数
-            timeout: 超时时间（秒）
-            poll_interval: 轮询间隔（秒）
-            
+            command_type: 명령 타입
+            args: 명령 파라미터
+            timeout: 타임아웃 시간 (초)
+            poll_interval: 폴링 간격 (초)
+
         Returns:
             IPCResponse
-            
+
         Raises:
-            TimeoutError: 等待响应超时
+            TimeoutError: 응답 대기 타임아웃
         """
         command_id = str(uuid.uuid4())
         command = IPCCommand(
@@ -142,50 +142,50 @@ class SimulationIPCClient:
             command_type=command_type,
             args=args
         )
-        
-        # 写入命令文件
+
+        # 명령 파일 작성
         command_file = os.path.join(self.commands_dir, f"{command_id}.json")
         with open(command_file, 'w', encoding='utf-8') as f:
             json.dump(command.to_dict(), f, ensure_ascii=False, indent=2)
-        
-        logger.info(f"发送IPC命令: {command_type.value}, command_id={command_id}")
-        
-        # 等待响应
+
+        logger.info(f"IPC 명령 전송: {command_type.value}, command_id={command_id}")
+
+        # 응답 대기
         response_file = os.path.join(self.responses_dir, f"{command_id}.json")
         start_time = time.time()
-        
+
         while time.time() - start_time < timeout:
             if os.path.exists(response_file):
                 try:
                     with open(response_file, 'r', encoding='utf-8') as f:
                         response_data = json.load(f)
                     response = IPCResponse.from_dict(response_data)
-                    
-                    # 清理命令和响应文件
+
+                    # 명령 및 응답 파일 정리
                     try:
                         os.remove(command_file)
                         os.remove(response_file)
                     except OSError:
                         pass
-                    
-                    logger.info(f"收到IPC响应: command_id={command_id}, status={response.status.value}")
+
+                    logger.info(f"IPC 응답 수신: command_id={command_id}, status={response.status.value}")
                     return response
                 except (json.JSONDecodeError, KeyError) as e:
-                    logger.warning(f"解析响应失败: {e}")
-            
+                    logger.warning(f"응답 파싱 실패: {e}")
+
             time.sleep(poll_interval)
-        
-        # 超时
-        logger.error(f"等待IPC响应超时: command_id={command_id}")
-        
-        # 清理命令文件
+
+        # 타임아웃
+        logger.error(f"IPC 응답 대기 타임아웃: command_id={command_id}")
+
+        # 명령 파일 정리
         try:
             os.remove(command_file)
         except OSError:
             pass
-        
-        raise TimeoutError(f"等待命令响应超时 ({timeout}秒)")
-    
+
+        raise TimeoutError(f"명령 응답 대기 타임아웃 ({timeout}초)")
+
     def send_interview(
         self,
         agent_id: int,
@@ -194,19 +194,19 @@ class SimulationIPCClient:
         timeout: float = 60.0
     ) -> IPCResponse:
         """
-        发送单个Agent采访命令
-        
+        단일 Agent 인터뷰 명령 전송
+
         Args:
             agent_id: Agent ID
-            prompt: 采访问题
-            platform: 指定平台（可选）
-                - "twitter": 只采访Twitter平台
-                - "reddit": 只采访Reddit平台  
-                - None: 双平台模拟时同时采访两个平台，单平台模拟时采访该平台
-            timeout: 超时时间
-            
+            prompt: 인터뷰 질문
+            platform: 지정 플랫폼 (선택)
+                - "twitter": Twitter 플랫폼만 인터뷰
+                - "reddit": Reddit 플랫폼만 인터뷰
+                - None: 이중 플랫폼 시뮬레이션 시 양 플랫폼 동시 인터뷰, 단일 플랫폼 시 해당 플랫폼 인터뷰
+            timeout: 타임아웃 시간
+
         Returns:
-            IPCResponse，result字段包含采访结果
+            IPCResponse, result 필드에 인터뷰 결과 포함
         """
         args = {
             "agent_id": agent_id,
@@ -214,13 +214,13 @@ class SimulationIPCClient:
         }
         if platform:
             args["platform"] = platform
-            
+
         return self.send_command(
             command_type=CommandType.INTERVIEW,
             args=args,
             timeout=timeout
         )
-    
+
     def send_batch_interview(
         self,
         interviews: List[Dict[str, Any]],
@@ -228,36 +228,36 @@ class SimulationIPCClient:
         timeout: float = 120.0
     ) -> IPCResponse:
         """
-        发送批量采访命令
-        
+        배치 인터뷰 명령 전송
+
         Args:
-            interviews: 采访列表，每个元素包含 {"agent_id": int, "prompt": str, "platform": str(可选)}
-            platform: 默认平台（可选，会被每个采访项的platform覆盖）
-                - "twitter": 默认只采访Twitter平台
-                - "reddit": 默认只采访Reddit平台
-                - None: 双平台模拟时每个Agent同时采访两个平台
-            timeout: 超时时间
-            
+            interviews: 인터뷰 목록, 각 요소는 {"agent_id": int, "prompt": str, "platform": str(선택)} 포함
+            platform: 기본 플랫폼 (선택, 각 인터뷰 항목의 platform으로 덮어씀)
+                - "twitter": 기본으로 Twitter 플랫폼만 인터뷰
+                - "reddit": 기본으로 Reddit 플랫폼만 인터뷰
+                - None: 이중 플랫폼 시뮬레이션 시 각 Agent가 양 플랫폼 동시 인터뷰
+            timeout: 타임아웃 시간
+
         Returns:
-            IPCResponse，result字段包含所有采访结果
+            IPCResponse, result 필드에 모든 인터뷰 결과 포함
         """
         args = {"interviews": interviews}
         if platform:
             args["platform"] = platform
-            
+
         return self.send_command(
             command_type=CommandType.BATCH_INTERVIEW,
             args=args,
             timeout=timeout
         )
-    
+
     def send_close_env(self, timeout: float = 30.0) -> IPCResponse:
         """
-        发送关闭环境命令
-        
+        환경 종료 명령 전송
+
         Args:
-            timeout: 超时时间
-            
+            timeout: 타임아웃 시간
+
         Returns:
             IPCResponse
         """
@@ -266,17 +266,17 @@ class SimulationIPCClient:
             args={},
             timeout=timeout
         )
-    
+
     def check_env_alive(self) -> bool:
         """
-        检查模拟环境是否存活
-        
-        通过检查 env_status.json 文件来判断
+        시뮬레이션 환경이 살아있는지 확인
+
+        env_status.json 파일을 확인하여 판단
         """
         status_file = os.path.join(self.simulation_dir, "env_status.json")
         if not os.path.exists(status_file):
             return False
-        
+
         try:
             with open(status_file, 'r', encoding='utf-8') as f:
                 status = json.load(f)
@@ -287,106 +287,106 @@ class SimulationIPCClient:
 
 class SimulationIPCServer:
     """
-    模拟IPC服务器（模拟脚本端使用）
-    
-    轮询命令目录，执行命令并返回响应
+    시뮬레이션 IPC 서버 (시뮬레이션 스크립트 측에서 사용)
+
+    명령 디렉토리를 폴링하고, 명령을 실행하여 응답을 반환
     """
-    
+
     def __init__(self, simulation_dir: str):
         """
-        初始化IPC服务器
-        
+        IPC 서버 초기화
+
         Args:
-            simulation_dir: 模拟数据目录
+            simulation_dir: 시뮬레이션 데이터 디렉토리
         """
         self.simulation_dir = simulation_dir
         self.commands_dir = os.path.join(simulation_dir, "ipc_commands")
         self.responses_dir = os.path.join(simulation_dir, "ipc_responses")
-        
-        # 确保目录存在
+
+        # 디렉토리 존재 확인
         os.makedirs(self.commands_dir, exist_ok=True)
         os.makedirs(self.responses_dir, exist_ok=True)
-        
-        # 环境状态
+
+        # 환경 상태
         self._running = False
-    
+
     def start(self):
-        """标记服务器为运行状态"""
+        """서버를 실행 상태로 표시"""
         self._running = True
         self._update_env_status("alive")
-    
+
     def stop(self):
-        """标记服务器为停止状态"""
+        """서버를 중지 상태로 표시"""
         self._running = False
         self._update_env_status("stopped")
-    
+
     def _update_env_status(self, status: str):
-        """更新环境状态文件"""
+        """환경 상태 파일 업데이트"""
         status_file = os.path.join(self.simulation_dir, "env_status.json")
         with open(status_file, 'w', encoding='utf-8') as f:
             json.dump({
                 "status": status,
                 "timestamp": datetime.now().isoformat()
             }, f, ensure_ascii=False, indent=2)
-    
+
     def poll_commands(self) -> Optional[IPCCommand]:
         """
-        轮询命令目录，返回第一个待处理的命令
-        
+        명령 디렉토리를 폴링하고, 첫 번째 대기 중인 명령 반환
+
         Returns:
-            IPCCommand 或 None
+            IPCCommand 또는 None
         """
         if not os.path.exists(self.commands_dir):
             return None
-        
-        # 按时间排序获取命令文件
+
+        # 시간순으로 정렬하여 명령 파일 가져오기
         command_files = []
         for filename in os.listdir(self.commands_dir):
             if filename.endswith('.json'):
                 filepath = os.path.join(self.commands_dir, filename)
                 command_files.append((filepath, os.path.getmtime(filepath)))
-        
+
         command_files.sort(key=lambda x: x[1])
-        
+
         for filepath, _ in command_files:
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 return IPCCommand.from_dict(data)
             except (json.JSONDecodeError, KeyError, OSError) as e:
-                logger.warning(f"读取命令文件失败: {filepath}, {e}")
+                logger.warning(f"명령 파일 읽기 실패: {filepath}, {e}")
                 continue
-        
+
         return None
-    
+
     def send_response(self, response: IPCResponse):
         """
-        发送响应
-        
+        응답 전송
+
         Args:
-            response: IPC响应
+            response: IPC 응답
         """
         response_file = os.path.join(self.responses_dir, f"{response.command_id}.json")
         with open(response_file, 'w', encoding='utf-8') as f:
             json.dump(response.to_dict(), f, ensure_ascii=False, indent=2)
-        
-        # 删除命令文件
+
+        # 명령 파일 삭제
         command_file = os.path.join(self.commands_dir, f"{response.command_id}.json")
         try:
             os.remove(command_file)
         except OSError:
             pass
-    
+
     def send_success(self, command_id: str, result: Dict[str, Any]):
-        """发送成功响应"""
+        """성공 응답 전송"""
         self.send_response(IPCResponse(
             command_id=command_id,
             status=CommandStatus.COMPLETED,
             result=result
         ))
-    
+
     def send_error(self, command_id: str, error: str):
-        """发送错误响应"""
+        """오류 응답 전송"""
         self.send_response(IPCResponse(
             command_id=command_id,
             status=CommandStatus.FAILED,

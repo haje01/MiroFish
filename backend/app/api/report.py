@@ -1,6 +1,6 @@
 """
-Report API路由
-提供模拟报告生成、获取、对话等接口
+Report API 라우트
+시뮬레이션 보고서 생성, 조회, 대화 등의 인터페이스 제공
 """
 
 import os
@@ -19,30 +19,30 @@ from ..utils.logger import get_logger
 logger = get_logger('mirofish.api.report')
 
 
-# ============== 报告生成接口 ==============
+# ============== 보고서 생성 인터페이스 ==============
 
 @report_bp.route('/generate', methods=['POST'])
 def generate_report():
     """
-    生成模拟分析报告（异步任务）
-    
-    这是一个耗时操作，接口会立即返回task_id，
-    使用 GET /api/report/generate/status 查询进度
-    
-    请求（JSON）：
+    시뮬레이션 분석 보고서 생성 (비동기 작업)
+
+    이는 시간이 걸리는 작업으로, 인터페이스는 즉시 task_id를 반환합니다.
+    GET /api/report/generate/status 를 사용하여 진행 상황을 조회하세요.
+
+    요청 (JSON):
         {
-            "simulation_id": "sim_xxxx",    // 必填，模拟ID
-            "force_regenerate": false        // 可选，强制重新生成
+            "simulation_id": "sim_xxxx",    // 필수, 시뮬레이션 ID
+            "force_regenerate": false        // 선택 사항, 강제 재생성
         }
-    
-    返回：
+
+    반환:
         {
             "success": true,
             "data": {
                 "simulation_id": "sim_xxxx",
                 "task_id": "task_xxxx",
                 "status": "generating",
-                "message": "报告生成任务已启动"
+                "message": "보고서 생성 작업이 시작되었습니다"
             }
         }
     """
@@ -53,22 +53,22 @@ def generate_report():
         if not simulation_id:
             return jsonify({
                 "success": False,
-                "error": "请提供 simulation_id"
+                "error": "simulation_id를 제공해 주세요"
             }), 400
-        
+
         force_regenerate = data.get('force_regenerate', False)
-        
-        # 获取模拟信息
+
+        # 시뮬레이션 정보 조회
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
-        
+
         if not state:
             return jsonify({
                 "success": False,
-                "error": f"模拟不存在: {simulation_id}"
+                "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"
             }), 404
-        
-        # 检查是否已有报告
+
+        # 이미 보고서가 있는지 확인
         if not force_regenerate:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
             if existing_report and existing_report.status == ReportStatus.COMPLETED:
@@ -78,38 +78,38 @@ def generate_report():
                         "simulation_id": simulation_id,
                         "report_id": existing_report.report_id,
                         "status": "completed",
-                        "message": "报告已存在",
+                        "message": "보고서가 이미 존재합니다",
                         "already_generated": True
                     }
                 })
-        
-        # 获取项目信息
+
+        # 프로젝트 정보 조회
         project = ProjectManager.get_project(state.project_id)
         if not project:
             return jsonify({
                 "success": False,
-                "error": f"项目不存在: {state.project_id}"
+                "error": f"프로젝트가 존재하지 않습니다: {state.project_id}"
             }), 404
-        
+
         graph_id = state.graph_id or project.graph_id
         if not graph_id:
             return jsonify({
                 "success": False,
-                "error": "缺少图谱ID，请确保已构建图谱"
+                "error": "그래프 ID가 없습니다. 그래프가 구축되었는지 확인해 주세요"
             }), 400
-        
+
         simulation_requirement = project.simulation_requirement
         if not simulation_requirement:
             return jsonify({
                 "success": False,
-                "error": "缺少模拟需求描述"
+                "error": "시뮬레이션 요구사항 설명이 없습니다"
             }), 400
-        
-        # 提前生成 report_id，以便立即返回给前端
+
+        # 프론트엔드에 즉시 반환하기 위해 미리 report_id 생성
         import uuid
         report_id = f"report_{uuid.uuid4().hex[:12]}"
-        
-        # 创建异步任务
+
+        # 비동기 작업 생성
         task_manager = TaskManager()
         task_id = task_manager.create_task(
             task_type="report_generate",
@@ -120,40 +120,40 @@ def generate_report():
             }
         )
         
-        # 定义后台任务
+        # 백그라운드 작업 정의
         def run_generate():
             try:
                 task_manager.update_task(
                     task_id,
                     status=TaskStatus.PROCESSING,
                     progress=0,
-                    message="初始化Report Agent..."
+                    message="Report Agent 초기화 중..."
                 )
-                
-                # 创建Report Agent
+
+                # Report Agent 생성
                 agent = ReportAgent(
                     graph_id=graph_id,
                     simulation_id=simulation_id,
                     simulation_requirement=simulation_requirement
                 )
                 
-                # 进度回调
+                # 진행 상황 콜백
                 def progress_callback(stage, progress, message):
                     task_manager.update_task(
                         task_id,
                         progress=progress,
                         message=f"[{stage}] {message}"
                     )
-                
-                # 生成报告（传入预先生成的 report_id）
+
+                # 보고서 생성 (미리 생성된 report_id 전달)
                 report = agent.generate_report(
                     progress_callback=progress_callback,
                     report_id=report_id
                 )
-                
-                # 保存报告
+
+                # 보고서 저장
                 ReportManager.save_report(report)
-                
+
                 if report.status == ReportStatus.COMPLETED:
                     task_manager.complete_task(
                         task_id,
@@ -164,16 +164,16 @@ def generate_report():
                         }
                     )
                 else:
-                    task_manager.fail_task(task_id, report.error or "报告生成失败")
-                
+                    task_manager.fail_task(task_id, report.error or "보고서 생성 실패")
+
             except Exception as e:
-                logger.error(f"报告生成失败: {str(e)}")
+                logger.error(f"보고서 생성 실패: {str(e)}")
                 task_manager.fail_task(task_id, str(e))
-        
-        # 启动后台线程
+
+        # 백그라운드 스레드 시작
         thread = threading.Thread(target=run_generate, daemon=True)
         thread.start()
-        
+
         return jsonify({
             "success": True,
             "data": {
@@ -181,13 +181,13 @@ def generate_report():
                 "report_id": report_id,
                 "task_id": task_id,
                 "status": "generating",
-                "message": "报告生成任务已启动，请通过 /api/report/generate/status 查询进度",
+                "message": "보고서 생성 작업이 시작되었습니다. /api/report/generate/status 를 통해 진행 상황을 확인하세요",
                 "already_generated": False
             }
         })
-        
+
     except Exception as e:
-        logger.error(f"启动报告生成任务失败: {str(e)}")
+        logger.error(f"보고서 생성 작업 시작 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -198,15 +198,15 @@ def generate_report():
 @report_bp.route('/generate/status', methods=['POST'])
 def get_generate_status():
     """
-    查询报告生成任务进度
-    
-    请求（JSON）：
+    보고서 생성 작업 진행 상황 조회
+
+    요청 (JSON):
         {
-            "task_id": "task_xxxx",         // 可选，generate返回的task_id
-            "simulation_id": "sim_xxxx"     // 可选，模拟ID
+            "task_id": "task_xxxx",         // 선택 사항, generate에서 반환된 task_id
+            "simulation_id": "sim_xxxx"     // 선택 사항, 시뮬레이션 ID
         }
-    
-    返回：
+
+    반환:
         {
             "success": true,
             "data": {
@@ -219,11 +219,11 @@ def get_generate_status():
     """
     try:
         data = request.get_json() or {}
-        
+
         task_id = data.get('task_id')
         simulation_id = data.get('simulation_id')
-        
-        # 如果提供了simulation_id，先检查是否已有完成的报告
+
+        # simulation_id가 제공된 경우 이미 완료된 보고서가 있는지 먼저 확인
         if simulation_id:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
             if existing_report and existing_report.status == ReportStatus.COMPLETED:
@@ -234,47 +234,47 @@ def get_generate_status():
                         "report_id": existing_report.report_id,
                         "status": "completed",
                         "progress": 100,
-                        "message": "报告已生成",
+                        "message": "보고서가 이미 생성되었습니다",
                         "already_completed": True
                     }
                 })
-        
+
         if not task_id:
             return jsonify({
                 "success": False,
-                "error": "请提供 task_id 或 simulation_id"
+                "error": "task_id 또는 simulation_id를 제공해 주세요"
             }), 400
-        
+
         task_manager = TaskManager()
         task = task_manager.get_task(task_id)
-        
+
         if not task:
             return jsonify({
                 "success": False,
-                "error": f"任务不存在: {task_id}"
+                "error": f"작업이 존재하지 않습니다: {task_id}"
             }), 404
-        
+
         return jsonify({
             "success": True,
             "data": task.to_dict()
         })
-        
+
     except Exception as e:
-        logger.error(f"查询任务状态失败: {str(e)}")
+        logger.error(f"작업 상태 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e)
         }), 500
 
 
-# ============== 报告获取接口 ==============
+# ============== 보고서 조회 인터페이스 ==============
 
 @report_bp.route('/<report_id>', methods=['GET'])
 def get_report(report_id: str):
     """
-    获取报告详情
-    
-    返回：
+    보고서 상세 조회
+
+    반환:
         {
             "success": true,
             "data": {
@@ -290,20 +290,20 @@ def get_report(report_id: str):
     """
     try:
         report = ReportManager.get_report(report_id)
-        
+
         if not report:
             return jsonify({
                 "success": False,
-                "error": f"报告不存在: {report_id}"
+                "error": f"보고서가 존재하지 않습니다: {report_id}"
             }), 404
-        
+
         return jsonify({
             "success": True,
             "data": report.to_dict()
         })
-        
+
     except Exception as e:
-        logger.error(f"获取报告失败: {str(e)}")
+        logger.error(f"보고서 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -314,9 +314,9 @@ def get_report(report_id: str):
 @report_bp.route('/by-simulation/<simulation_id>', methods=['GET'])
 def get_report_by_simulation(simulation_id: str):
     """
-    根据模拟ID获取报告
-    
-    返回：
+    시뮬레이션 ID로 보고서 조회
+
+    반환:
         {
             "success": true,
             "data": {
@@ -327,22 +327,22 @@ def get_report_by_simulation(simulation_id: str):
     """
     try:
         report = ReportManager.get_report_by_simulation(simulation_id)
-        
+
         if not report:
             return jsonify({
                 "success": False,
-                "error": f"该模拟暂无报告: {simulation_id}",
+                "error": f"해당 시뮬레이션의 보고서가 없습니다: {simulation_id}",
                 "has_report": False
             }), 404
-        
+
         return jsonify({
             "success": True,
             "data": report.to_dict(),
             "has_report": True
         })
-        
+
     except Exception as e:
-        logger.error(f"获取报告失败: {str(e)}")
+        logger.error(f"보고서 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -353,13 +353,13 @@ def get_report_by_simulation(simulation_id: str):
 @report_bp.route('/list', methods=['GET'])
 def list_reports():
     """
-    列出所有报告
-    
-    Query参数：
-        simulation_id: 按模拟ID过滤（可选）
-        limit: 返回数量限制（默认50）
-    
-    返回：
+    모든 보고서 목록 조회
+
+    Query 파라미터:
+        simulation_id: 시뮬레이션 ID로 필터링 (선택 사항)
+        limit: 반환 개수 제한 (기본값 50)
+
+    반환:
         {
             "success": true,
             "data": [...],
@@ -369,20 +369,20 @@ def list_reports():
     try:
         simulation_id = request.args.get('simulation_id')
         limit = request.args.get('limit', 50, type=int)
-        
+
         reports = ReportManager.list_reports(
             simulation_id=simulation_id,
             limit=limit
         )
-        
+
         return jsonify({
             "success": True,
             "data": [r.to_dict() for r in reports],
             "count": len(reports)
         })
-        
+
     except Exception as e:
-        logger.error(f"列出报告失败: {str(e)}")
+        logger.error(f"보고서 목록 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -393,23 +393,23 @@ def list_reports():
 @report_bp.route('/<report_id>/download', methods=['GET'])
 def download_report(report_id: str):
     """
-    下载报告（Markdown格式）
-    
-    返回Markdown文件
+    보고서 다운로드 (Markdown 형식)
+
+    Markdown 파일 반환
     """
     try:
         report = ReportManager.get_report(report_id)
-        
+
         if not report:
             return jsonify({
                 "success": False,
-                "error": f"报告不存在: {report_id}"
+                "error": f"보고서가 존재하지 않습니다: {report_id}"
             }), 404
-        
+
         md_path = ReportManager._get_report_markdown_path(report_id)
-        
+
         if not os.path.exists(md_path):
-            # 如果MD文件不存在，生成一个临时文件
+            # MD 파일이 없을 경우 임시 파일 생성
             import tempfile
             with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
                 f.write(report.markdown_content)
@@ -428,7 +428,7 @@ def download_report(report_id: str):
         )
         
     except Exception as e:
-        logger.error(f"下载报告失败: {str(e)}")
+        logger.error(f"보고서 다운로드 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -438,23 +438,23 @@ def download_report(report_id: str):
 
 @report_bp.route('/<report_id>', methods=['DELETE'])
 def delete_report(report_id: str):
-    """删除报告"""
+    """보고서 삭제"""
     try:
         success = ReportManager.delete_report(report_id)
-        
+
         if not success:
             return jsonify({
                 "success": False,
-                "error": f"报告不存在: {report_id}"
+                "error": f"보고서가 존재하지 않습니다: {report_id}"
             }), 404
-        
+
         return jsonify({
             "success": True,
-            "message": f"报告已删除: {report_id}"
+            "message": f"보고서가 삭제되었습니다: {report_id}"
         })
-        
+
     except Exception as e:
-        logger.error(f"删除报告失败: {str(e)}")
+        logger.error(f"보고서 삭제 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -462,96 +462,96 @@ def delete_report(report_id: str):
         }), 500
 
 
-# ============== Report Agent对话接口 ==============
+# ============== Report Agent 대화 인터페이스 ==============
 
 @report_bp.route('/chat', methods=['POST'])
 def chat_with_report_agent():
     """
-    与Report Agent对话
-    
-    Report Agent可以在对话中自主调用检索工具来回答问题
-    
-    请求（JSON）：
+    Report Agent와 대화
+
+    Report Agent는 대화 중 자율적으로 검색 도구를 호출하여 질문에 답변할 수 있습니다.
+
+    요청 (JSON):
         {
-            "simulation_id": "sim_xxxx",        // 必填，模拟ID
-            "message": "请解释一下舆情走向",    // 必填，用户消息
-            "chat_history": [                   // 可选，对话历史
+            "simulation_id": "sim_xxxx",        // 필수, 시뮬레이션 ID
+            "message": "여론 동향을 설명해 주세요",    // 필수, 사용자 메시지
+            "chat_history": [                   // 선택 사항, 대화 이력
                 {"role": "user", "content": "..."},
                 {"role": "assistant", "content": "..."}
             ]
         }
-    
-    返回：
+
+    반환:
         {
             "success": true,
             "data": {
-                "response": "Agent回复...",
-                "tool_calls": [调用的工具列表],
-                "sources": [信息来源]
+                "response": "Agent 응답...",
+                "tool_calls": [호출된 도구 목록],
+                "sources": [정보 출처]
             }
         }
     """
     try:
         data = request.get_json() or {}
-        
+
         simulation_id = data.get('simulation_id')
         message = data.get('message')
         chat_history = data.get('chat_history', [])
-        
+
         if not simulation_id:
             return jsonify({
                 "success": False,
-                "error": "请提供 simulation_id"
+                "error": "simulation_id를 제공해 주세요"
             }), 400
-        
+
         if not message:
             return jsonify({
                 "success": False,
-                "error": "请提供 message"
+                "error": "message를 제공해 주세요"
             }), 400
-        
-        # 获取模拟和项目信息
+
+        # 시뮬레이션 및 프로젝트 정보 조회
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
-        
+
         if not state:
             return jsonify({
                 "success": False,
-                "error": f"模拟不存在: {simulation_id}"
+                "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"
             }), 404
-        
+
         project = ProjectManager.get_project(state.project_id)
         if not project:
             return jsonify({
                 "success": False,
-                "error": f"项目不存在: {state.project_id}"
+                "error": f"프로젝트가 존재하지 않습니다: {state.project_id}"
             }), 404
-        
+
         graph_id = state.graph_id or project.graph_id
         if not graph_id:
             return jsonify({
                 "success": False,
-                "error": "缺少图谱ID"
+                "error": "그래프 ID가 없습니다"
             }), 400
-        
+
         simulation_requirement = project.simulation_requirement or ""
-        
-        # 创建Agent并进行对话
+
+        # Agent 생성 후 대화
         agent = ReportAgent(
             graph_id=graph_id,
             simulation_id=simulation_id,
             simulation_requirement=simulation_requirement
         )
-        
+
         result = agent.chat(message=message, chat_history=chat_history)
-        
+
         return jsonify({
             "success": True,
             "data": result
         })
-        
+
     except Exception as e:
-        logger.error(f"对话失败: {str(e)}")
+        logger.error(f"대화 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -559,42 +559,42 @@ def chat_with_report_agent():
         }), 500
 
 
-# ============== 报告进度与分章节接口 ==============
+# ============== 보고서 진행 상황 및 섹션별 인터페이스 ==============
 
 @report_bp.route('/<report_id>/progress', methods=['GET'])
 def get_report_progress(report_id: str):
     """
-    获取报告生成进度（实时）
-    
-    返回：
+    보고서 생성 진행 상황 조회 (실시간)
+
+    반환:
         {
             "success": true,
             "data": {
                 "status": "generating",
                 "progress": 45,
-                "message": "正在生成章节: 关键发现",
-                "current_section": "关键发现",
-                "completed_sections": ["执行摘要", "模拟背景"],
+                "message": "섹션 생성 중: 핵심 발견사항",
+                "current_section": "핵심 발견사항",
+                "completed_sections": ["실행 요약", "시뮬레이션 배경"],
                 "updated_at": "2025-12-09T..."
             }
         }
     """
     try:
         progress = ReportManager.get_progress(report_id)
-        
+
         if not progress:
             return jsonify({
                 "success": False,
-                "error": f"报告不存在或进度信息不可用: {report_id}"
+                "error": f"보고서가 존재하지 않거나 진행 정보를 사용할 수 없습니다: {report_id}"
             }), 404
-        
+
         return jsonify({
             "success": True,
             "data": progress
         })
-        
+
     except Exception as e:
-        logger.error(f"获取报告进度失败: {str(e)}")
+        logger.error(f"보고서 진행 상황 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -605,11 +605,12 @@ def get_report_progress(report_id: str):
 @report_bp.route('/<report_id>/sections', methods=['GET'])
 def get_report_sections(report_id: str):
     """
-    获取已生成的章节列表（分章节输出）
-    
-    前端可以轮询此接口获取已生成的章节内容，无需等待整个报告完成
-    
-    返回：
+    생성된 섹션 목록 조회 (섹션별 출력)
+
+    프론트엔드는 이 인터페이스를 폴링하여 생성된 섹션 내용을 확인할 수 있으며,
+    전체 보고서가 완료될 때까지 기다릴 필요가 없습니다.
+
+    반환:
         {
             "success": true,
             "data": {
@@ -618,7 +619,7 @@ def get_report_sections(report_id: str):
                     {
                         "filename": "section_01.md",
                         "section_index": 1,
-                        "content": "## 执行摘要\\n\\n..."
+                        "content": "## 실행 요약\\n\\n..."
                     },
                     ...
                 ],
@@ -629,11 +630,11 @@ def get_report_sections(report_id: str):
     """
     try:
         sections = ReportManager.get_generated_sections(report_id)
-        
-        # 获取报告状态
+
+        # 보고서 상태 조회
         report = ReportManager.get_report(report_id)
         is_complete = report is not None and report.status == ReportStatus.COMPLETED
-        
+
         return jsonify({
             "success": True,
             "data": {
@@ -643,9 +644,9 @@ def get_report_sections(report_id: str):
                 "is_complete": is_complete
             }
         })
-        
+
     except Exception as e:
-        logger.error(f"获取章节列表失败: {str(e)}")
+        logger.error(f"섹션 목록 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -656,29 +657,29 @@ def get_report_sections(report_id: str):
 @report_bp.route('/<report_id>/section/<int:section_index>', methods=['GET'])
 def get_single_section(report_id: str, section_index: int):
     """
-    获取单个章节内容
-    
-    返回：
+    단일 섹션 내용 조회
+
+    반환:
         {
             "success": true,
             "data": {
                 "filename": "section_01.md",
-                "content": "## 执行摘要\\n\\n..."
+                "content": "## 실행 요약\\n\\n..."
             }
         }
     """
     try:
         section_path = ReportManager._get_section_path(report_id, section_index)
-        
+
         if not os.path.exists(section_path):
             return jsonify({
                 "success": False,
-                "error": f"章节不存在: section_{section_index:02d}.md"
+                "error": f"섹션이 존재하지 않습니다: section_{section_index:02d}.md"
             }), 404
-        
+
         with open(section_path, 'r', encoding='utf-8') as f:
             content = f.read()
-        
+
         return jsonify({
             "success": True,
             "data": {
@@ -687,9 +688,9 @@ def get_single_section(report_id: str, section_index: int):
                 "content": content
             }
         })
-        
+
     except Exception as e:
-        logger.error(f"获取章节内容失败: {str(e)}")
+        logger.error(f"섹션 내용 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -697,16 +698,16 @@ def get_single_section(report_id: str, section_index: int):
         }), 500
 
 
-# ============== 报告状态检查接口 ==============
+# ============== 보고서 상태 확인 인터페이스 ==============
 
 @report_bp.route('/check/<simulation_id>', methods=['GET'])
 def check_report_status(simulation_id: str):
     """
-    检查模拟是否有报告，以及报告状态
-    
-    用于前端判断是否解锁Interview功能
-    
-    返回：
+    시뮬레이션에 보고서가 있는지, 보고서 상태 확인
+
+    프론트엔드에서 Interview 기능 잠금 해제 여부를 판단하는 데 사용
+
+    반환:
         {
             "success": true,
             "data": {
@@ -720,14 +721,14 @@ def check_report_status(simulation_id: str):
     """
     try:
         report = ReportManager.get_report_by_simulation(simulation_id)
-        
+
         has_report = report is not None
         report_status = report.status.value if report else None
         report_id = report.report_id if report else None
-        
-        # 只有报告完成后才解锁interview
+
+        # 보고서가 완료된 후에만 interview 잠금 해제
         interview_unlocked = has_report and report.status == ReportStatus.COMPLETED
-        
+
         return jsonify({
             "success": True,
             "data": {
@@ -738,9 +739,9 @@ def check_report_status(simulation_id: str):
                 "interview_unlocked": interview_unlocked
             }
         })
-        
+
     except Exception as e:
-        logger.error(f"检查报告状态失败: {str(e)}")
+        logger.error(f"보고서 상태 확인 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -748,22 +749,22 @@ def check_report_status(simulation_id: str):
         }), 500
 
 
-# ============== Agent 日志接口 ==============
+# ============== Agent 로그 인터페이스 ==============
 
 @report_bp.route('/<report_id>/agent-log', methods=['GET'])
 def get_agent_log(report_id: str):
     """
-    获取 Report Agent 的详细执行日志
-    
-    实时获取报告生成过程中的每一步动作，包括：
-    - 报告开始、规划开始/完成
-    - 每个章节的开始、工具调用、LLM响应、完成
-    - 报告完成或失败
-    
-    Query参数：
-        from_line: 从第几行开始读取（可选，默认0，用于增量获取）
-    
-    返回：
+    Report Agent의 상세 실행 로그 조회
+
+    보고서 생성 과정에서의 각 단계별 동작을 실시간으로 조회합니다:
+    - 보고서 시작, 계획 시작/완료
+    - 각 섹션의 시작, 도구 호출, LLM 응답, 완료
+    - 보고서 완료 또는 실패
+
+    Query 파라미터:
+        from_line: 몇 번째 줄부터 읽을지 (선택 사항, 기본값 0, 증분 조회용)
+
+    반환:
         {
             "success": true,
             "data": {
@@ -774,7 +775,7 @@ def get_agent_log(report_id: str):
                         "report_id": "report_xxxx",
                         "action": "tool_call",
                         "stage": "generating",
-                        "section_title": "执行摘要",
+                        "section_title": "실행 요약",
                         "section_index": 1,
                         "details": {
                             "tool_name": "insight_forge",
@@ -792,16 +793,16 @@ def get_agent_log(report_id: str):
     """
     try:
         from_line = request.args.get('from_line', 0, type=int)
-        
+
         log_data = ReportManager.get_agent_log(report_id, from_line=from_line)
-        
+
         return jsonify({
             "success": True,
             "data": log_data
         })
-        
+
     except Exception as e:
-        logger.error(f"获取Agent日志失败: {str(e)}")
+        logger.error(f"Agent 로그 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -812,9 +813,9 @@ def get_agent_log(report_id: str):
 @report_bp.route('/<report_id>/agent-log/stream', methods=['GET'])
 def stream_agent_log(report_id: str):
     """
-    获取完整的 Agent 日志（一次性获取全部）
-    
-    返回：
+    전체 Agent 로그 조회 (한 번에 모두 가져오기)
+
+    반환:
         {
             "success": true,
             "data": {
@@ -825,7 +826,7 @@ def stream_agent_log(report_id: str):
     """
     try:
         logs = ReportManager.get_agent_log_stream(report_id)
-        
+
         return jsonify({
             "success": True,
             "data": {
@@ -833,9 +834,9 @@ def stream_agent_log(report_id: str):
                 "count": len(logs)
             }
         })
-        
+
     except Exception as e:
-        logger.error(f"获取Agent日志失败: {str(e)}")
+        logger.error(f"Agent 로그 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -843,27 +844,27 @@ def stream_agent_log(report_id: str):
         }), 500
 
 
-# ============== 控制台日志接口 ==============
+# ============== 콘솔 로그 인터페이스 ==============
 
 @report_bp.route('/<report_id>/console-log', methods=['GET'])
 def get_console_log(report_id: str):
     """
-    获取 Report Agent 的控制台输出日志
-    
-    实时获取报告生成过程中的控制台输出（INFO、WARNING等），
-    这与 agent-log 接口返回的结构化 JSON 日志不同，
-    是纯文本格式的控制台风格日志。
-    
-    Query参数：
-        from_line: 从第几行开始读取（可选，默认0，用于增量获取）
-    
-    返回：
+    Report Agent의 콘솔 출력 로그 조회
+
+    보고서 생성 과정에서의 콘솔 출력 (INFO, WARNING 등)을 실시간으로 조회합니다.
+    이는 agent-log 인터페이스에서 반환하는 구조화된 JSON 로그와 다르며,
+    순수 텍스트 형식의 콘솔 스타일 로그입니다.
+
+    Query 파라미터:
+        from_line: 몇 번째 줄부터 읽을지 (선택 사항, 기본값 0, 증분 조회용)
+
+    반환:
         {
             "success": true,
             "data": {
                 "logs": [
-                    "[19:46:14] INFO: 搜索完成: 找到 15 条相关事实",
-                    "[19:46:14] INFO: 图谱搜索: graph_id=xxx, query=...",
+                    "[19:46:14] INFO: 검색 완료: 관련 사실 15건 발견",
+                    "[19:46:14] INFO: 그래프 검색: graph_id=xxx, query=...",
                     ...
                 ],
                 "total_lines": 100,
@@ -874,16 +875,16 @@ def get_console_log(report_id: str):
     """
     try:
         from_line = request.args.get('from_line', 0, type=int)
-        
+
         log_data = ReportManager.get_console_log(report_id, from_line=from_line)
-        
+
         return jsonify({
             "success": True,
             "data": log_data
         })
-        
+
     except Exception as e:
-        logger.error(f"获取控制台日志失败: {str(e)}")
+        logger.error(f"콘솔 로그 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -894,9 +895,9 @@ def get_console_log(report_id: str):
 @report_bp.route('/<report_id>/console-log/stream', methods=['GET'])
 def stream_console_log(report_id: str):
     """
-    获取完整的控制台日志（一次性获取全部）
-    
-    返回：
+    전체 콘솔 로그 조회 (한 번에 모두 가져오기)
+
+    반환:
         {
             "success": true,
             "data": {
@@ -907,7 +908,7 @@ def stream_console_log(report_id: str):
     """
     try:
         logs = ReportManager.get_console_log_stream(report_id)
-        
+
         return jsonify({
             "success": True,
             "data": {
@@ -915,9 +916,9 @@ def stream_console_log(report_id: str):
                 "count": len(logs)
             }
         })
-        
+
     except Exception as e:
-        logger.error(f"获取控制台日志失败: {str(e)}")
+        logger.error(f"콘솔 로그 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -925,49 +926,49 @@ def stream_console_log(report_id: str):
         }), 500
 
 
-# ============== 工具调用接口（供调试使用）==============
+# ============== 도구 호출 인터페이스 (디버깅용) ==============
 
 @report_bp.route('/tools/search', methods=['POST'])
 def search_graph_tool():
     """
-    图谱搜索工具接口（供调试使用）
-    
-    请求（JSON）：
+    그래프 검색 도구 인터페이스 (디버깅용)
+
+    요청 (JSON):
         {
             "graph_id": "mirofish_xxxx",
-            "query": "搜索查询",
+            "query": "검색 쿼리",
             "limit": 10
         }
     """
     try:
         data = request.get_json() or {}
-        
+
         graph_id = data.get('graph_id')
         query = data.get('query')
         limit = data.get('limit', 10)
-        
+
         if not graph_id or not query:
             return jsonify({
                 "success": False,
-                "error": "请提供 graph_id 和 query"
+                "error": "graph_id와 query를 제공해 주세요"
             }), 400
-        
+
         from ..services.zep_tools import ZepToolsService
-        
+
         tools = ZepToolsService()
         result = tools.search_graph(
             graph_id=graph_id,
             query=query,
             limit=limit
         )
-        
+
         return jsonify({
             "success": True,
             "data": result.to_dict()
         })
-        
+
     except Exception as e:
-        logger.error(f"图谱搜索失败: {str(e)}")
+        logger.error(f"그래프 검색 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -978,36 +979,36 @@ def search_graph_tool():
 @report_bp.route('/tools/statistics', methods=['POST'])
 def get_graph_statistics_tool():
     """
-    图谱统计工具接口（供调试使用）
-    
-    请求（JSON）：
+    그래프 통계 도구 인터페이스 (디버깅용)
+
+    요청 (JSON):
         {
             "graph_id": "mirofish_xxxx"
         }
     """
     try:
         data = request.get_json() or {}
-        
+
         graph_id = data.get('graph_id')
-        
+
         if not graph_id:
             return jsonify({
                 "success": False,
-                "error": "请提供 graph_id"
+                "error": "graph_id를 제공해 주세요"
             }), 400
-        
+
         from ..services.zep_tools import ZepToolsService
-        
+
         tools = ZepToolsService()
         result = tools.get_graph_statistics(graph_id)
-        
+
         return jsonify({
             "success": True,
             "data": result
         })
-        
+
     except Exception as e:
-        logger.error(f"获取图谱统计失败: {str(e)}")
+        logger.error(f"그래프 통계 조회 실패: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
