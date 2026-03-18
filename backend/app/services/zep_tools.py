@@ -1356,7 +1356,7 @@ Return the list of sub-questions in JSON format."""
             "1. Answer directly in natural language, do not call any tools\n"
             "2. Do not return JSON format or tool call format\n"
             "3. Do not use Markdown headings (e.g., #, ##, ###)\n"
-            "4. Answer each question by number, starting each answer with 'Question X:' (X is the question number)\n"
+            "4. Answer each question by number, starting each answer with '질문 X:' (X is the question number)\n"
             "5. Separate answers with blank lines\n"
             "6. Provide substantive answers, at least 2-3 sentences per question\n\n"
         )

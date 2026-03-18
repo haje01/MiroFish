@@ -1342,7 +1342,7 @@ const InterviewDisplay = {
       let match
 
       // "질문X：" 한국어 질문 번호 형식 우선 시도
-      const cnPattern = /(?:^|[\r\n]+)질문(\d+)[：:]\s*/g
+      const cnPattern = /(?:^|[\r\n]+)질문\s*(\d+)[：:]\s*/g
       while ((match = cnPattern.exec(answerText)) !== null) {
         matches.push({
           num: parseInt(match[1]),
@@ -1366,7 +1366,7 @@ const InterviewDisplay = {
       // 번호를 찾지 못하거나 하나만 찾은 경우, 전체 반환
       if (matches.length <= 1) {
         const cleaned = answerText
-          .replace(/^질문\d+[：:]\s*/, '')
+          .replace(/^질문\s*\d+[：:]\s*/, '')
           .replace(/^\d+\.\s+/, '')
           .trim()
         return [cleaned || answerText]
