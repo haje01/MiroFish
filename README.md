@@ -127,6 +127,13 @@ LLM_MODEL_NAME=qwen-plus
 ZEP_API_KEY=your_zep_api_key
 ```
 
+> **참고**
+> OpenAI 이용 시
+> ```
+> LLM_BASE_URL=https://api.openai.com/v1
+> LLM_MODEL_NAME=gpt-5.4-mini
+> ```
+
 #### 2. 의존성 설치
 
 ```bash
@@ -145,7 +152,7 @@ npm run setup:backend
 ```
 
 > **주의**
-> 설치 시 `pillow` 관련 에러가 나면 `backend/` 디렉토리에서 `uv python pin 3.12` 을 실행하여 파이썬 버전을 3.12 로 지정한다.
+> 설치 시 `pillow` 관련 에러가 나면 `backend/` 디렉토리에서 `uv python pin 3.12` 을 실행하여 파이썬 버전을 3.12 로 지정한 후 다시 `npm run setup:backend` 를 실행한다.
 
 #### 3. 서비스 시작
 
