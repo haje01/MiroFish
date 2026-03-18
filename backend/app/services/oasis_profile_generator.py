@@ -1099,6 +1099,8 @@ class OasisProfileGenerator:
                     user_char = f"{profile.bio} {profile.persona}"
                 # 줄바꿈 처리（CSV에서는 공백으로 대체）
                 user_char = user_char.replace('\n', ' ').replace('\r', ' ')
+                # 게시물/댓글은 항상 한국어로 작성하도록 지시
+                user_char = f"{user_char} Always write your posts and comments in Korean."
                 
                 # description: 짧은 소개, 외부 표시용
                 description = profile.bio.replace('\n', ' ').replace('\r', ' ')
@@ -1169,7 +1171,7 @@ class OasisProfileGenerator:
                 "username": profile.user_name,
                 "name": profile.name,
                 "bio": profile.bio[:150] if profile.bio else f"{profile.name}",
-                "persona": profile.persona or f"{profile.name} is a participant in social discussions.",
+                "persona": (profile.persona or f"{profile.name} is a participant in social discussions.") + " Always write your posts and comments in Korean.",
                 "karma": profile.karma if profile.karma else 1000,
                 "created_at": profile.created_at,
                 # OASIS 필수 필드 - 기본값 보장
