@@ -35,6 +35,10 @@ Therefore, **entities must be real subjects that exist in reality and can voice 
 - Abstract concepts (e.g., "public opinion", "emotions", "trends")
 - Topics/subjects (e.g., "academic integrity", "education reform")
 - Opinions/attitudes (e.g., "supporters", "opponents")
+- Physical objects / inanimate things (e.g., "table", "food", "rice", "meal", "dish", "product", "item", "device", "tool", "furniture", "equipment")
+- Places / locations (e.g., "park", "building", "city", "region", "country", "area", "facility")
+- Events / incidents (e.g., "accident", "ceremony", "festival", "meeting", "conference")
+- Animals, plants, or other non-human non-organizational entities
 
 ## Output Format
 
@@ -250,10 +254,63 @@ Please design entity types and relationship types suitable for social public opi
 3. The first 8 are specific types designed based on the text content
 4. All entity types must be subjects that can voice opinions in reality, not abstract concepts
 5. Attribute names cannot use reserved words like name, uuid, group_id; use full_name, org_name, etc. instead
+6. NEVER include physical objects, food, places, events, or animals as entity types — these cannot have social media accounts
 """
 
         return message
     
+    # 소셜 미디어 행위자가 될 수 없는 사물/장소/개념 키워드 (소문자)
+    INANIMATE_KEYWORDS = {
+        # 음식/식품
+        "food", "meal", "dish", "rice", "drink", "beverage", "ingredient",
+        "cuisine", "snack", "dessert", "bread", "fruit", "vegetable",
+        # 가구/사물
+        "furniture", "table", "chair", "desk", "bed", "sofa", "shelf",
+        "object", "item", "product", "device", "tool", "equipment", "machine",
+        "appliance", "vehicle", "car", "bike",
+        # 장소/지역
+        "place", "location", "area", "region", "city", "town", "village",
+        "building", "facility", "park", "school", "hospital", "store",
+        "restaurant", "hotel", "site",
+        # 사건/이벤트
+        "event", "incident", "accident", "ceremony", "festival", "meeting",
+        "conference", "occasion",
+        # 동식물/자연
+        "animal", "plant", "nature", "species", "creature",
+        # 추상 개념
+        "concept", "idea", "theory", "topic", "issue", "trend", "phenomenon",
+    }
+
+    def _is_inanimate_entity_type(self, entity_name: str) -> bool:
+        """사물/장소/개념 등 소셜 행위자가 될 수 없는 엔티티 타입인지 확인.
+
+        PascalCase 이름을 단어 단위로 분리하여 매칭하므로 'FoodCompany'처럼
+        사물 키워드를 포함하더라도 나머지 단어가 사회적 행위자를 나타내면 허용.
+        모든 구성 단어가 사물 키워드일 때만 True 반환.
+        """
+        import re
+        # PascalCase/camelCase → 단어 분리 (예: "FoodCompany" → ["Food", "Company"])
+        words = re.sub(r'([a-z])([A-Z])', r'\1 \2', entity_name).split()
+        if not words:
+            return False
+        lower_words = [w.lower() for w in words]
+        inanimate_words = [w for w in lower_words if w in self.INANIMATE_KEYWORDS]
+        # 사회적 행위자를 나타내는 단어가 하나라도 있으면 허용
+        SOCIAL_SUFFIXES = {
+            "person", "people", "individual", "human",
+            "company", "corporation", "firm", "enterprise", "business",
+            "organization", "organisation", "agency", "authority", "body",
+            "group", "community", "association", "union", "coalition",
+            "media", "outlet", "platform", "network",
+            "expert", "official", "leader", "officer", "representative",
+            "manufacturer", "producer", "brand", "operator",
+        }
+        has_social_word = any(w in SOCIAL_SUFFIXES for w in lower_words)
+        if has_social_word:
+            return False
+        # 사물 키워드가 하나라도 있으면 필터
+        return len(inanimate_words) > 0
+
     def _validate_and_process(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """결과 검증 및 후처리"""
 
@@ -264,6 +321,19 @@ Please design entity types and relationship types suitable for social public opi
             result["edge_types"] = []
         if "analysis_summary" not in result:
             result["analysis_summary"] = ""
+
+        # 사물/장소/개념 등 소셜 행위자가 될 수 없는 엔티티 타입 필터링
+        original_count = len(result["entity_types"])
+        result["entity_types"] = [
+            e for e in result["entity_types"]
+            if not self._is_inanimate_entity_type(e.get("name", ""))
+        ]
+        filtered_count = original_count - len(result["entity_types"])
+        if filtered_count > 0:
+            import logging
+            logging.getLogger('mirofish.ontology_generator').warning(
+                f"사물/장소/개념으로 판단된 엔티티 타입 {filtered_count}개 제거됨"
+            )
 
         # 엔티티 유형 검증
         for entity in result["entity_types"]:

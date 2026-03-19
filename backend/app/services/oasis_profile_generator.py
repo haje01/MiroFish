@@ -176,6 +176,23 @@ class OasisProfileGenerator:
         "university", "governmentagency", "organization", "ngo",
         "mediaoutlet", "company", "institution", "group", "community"
     ]
+
+    # 소셜 미디어 행위자가 될 수 없는 사물/장소/개념 키워드 (소문자)
+    # ontology_generator.py의 동일 목록과 동기화 유지
+    INANIMATE_TYPE_KEYWORDS = {
+        "food", "meal", "dish", "rice", "drink", "beverage", "ingredient",
+        "cuisine", "snack", "dessert", "bread", "fruit", "vegetable",
+        "furniture", "table", "chair", "desk", "bed", "sofa", "shelf",
+        "object", "item", "product", "device", "tool", "equipment", "machine",
+        "appliance", "vehicle", "car", "bike",
+        "place", "location", "area", "region", "city", "town", "village",
+        "building", "facility", "park", "school", "hospital", "store",
+        "restaurant", "hotel", "site",
+        "event", "incident", "accident", "ceremony", "festival", "meeting",
+        "conference", "occasion",
+        "animal", "plant", "nature", "species", "creature",
+        "concept", "idea", "theory", "topic", "issue", "trend", "phenomenon",
+    }
     
     def __init__(
         self, 
@@ -493,6 +510,33 @@ class OasisProfileGenerator:
     def _is_group_entity(self, entity_type: str) -> bool:
         """집단/기관 유형 엔티티 여부 판단"""
         return entity_type.lower() in self.GROUP_ENTITY_TYPES
+
+    def _is_inanimate_entity_type(self, entity_type: str) -> bool:
+        """사물/장소/개념 등 소셜 행위자가 될 수 없는 엔티티 타입인지 확인.
+
+        PascalCase 이름을 단어 단위로 분리하여 매칭하므로 'FoodCompany'처럼
+        사물 키워드를 포함하더라도 나머지 단어가 사회적 행위자를 나타내면 허용.
+        모든 구성 단어가 사물 키워드일 때만 True 반환.
+        """
+        import re
+        words = re.sub(r'([a-z])([A-Z])', r'\1 \2', entity_type).split()
+        if not words:
+            return False
+        lower_words = [w.lower() for w in words]
+        inanimate_words = [w for w in lower_words if w in self.INANIMATE_TYPE_KEYWORDS]
+        SOCIAL_SUFFIXES = {
+            "person", "people", "individual", "human",
+            "company", "corporation", "firm", "enterprise", "business",
+            "organization", "organisation", "agency", "authority", "body",
+            "group", "community", "association", "union", "coalition",
+            "media", "outlet", "platform", "network",
+            "expert", "official", "leader", "officer", "representative",
+            "manufacturer", "producer", "brand", "operator",
+        }
+        has_social_word = any(w in SOCIAL_SUFFIXES for w in lower_words)
+        if has_social_word:
+            return False
+        return len(inanimate_words) > 0
     
     def _generate_profile_with_llm(
         self,
@@ -879,6 +923,19 @@ class OasisProfileGenerator:
         # Zep 검색에 사용할 graph_id 설정
         if graph_id:
             self.graph_id = graph_id
+
+        # 사물/장소/개념 엔티티 사전 필터링
+        filtered_entities = []
+        skipped_names = []
+        for entity in entities:
+            etype = entity.get_entity_type() or "Entity"
+            if self._is_inanimate_entity_type(etype):
+                skipped_names.append(f"{entity.name}({etype})")
+            else:
+                filtered_entities.append(entity)
+        if skipped_names:
+            logger.warning(f"사물/장소/개념으로 판단된 엔티티 {len(skipped_names)}개 스킵: {', '.join(skipped_names)}")
+        entities = filtered_entities
 
         total = len(entities)
         profiles = [None] * total  # 순서 유지를 위한 리스트 사전 할당
