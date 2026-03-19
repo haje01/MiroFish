@@ -17,6 +17,11 @@
       <div class="section-line"></div>
     </div>
 
+    <!-- 전체 삭제 버튼 -->
+    <div v-if="projects.length > 0" class="history-actions">
+      <button class="delete-all-btn" @click="confirmDeleteAll">전체 삭제</button>
+    </div>
+
     <!-- 카드 컨테이너 (프로젝트가 있을 때만 표시) -->
     <div v-if="projects.length > 0" class="cards-container" :class="{ expanded: isExpanded }" :style="containerStyle">
       <div
@@ -421,6 +426,26 @@ const loadHistory = async () => {
   }
 }
 
+
+const confirmDeleteAll = async () => {
+  if (!confirm(`시뮬레이션 기록 ${projects.value.length}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return
+
+  const ids = projects.value.map(p => p.simulation_id)
+  let failCount = 0
+  for (const id of ids) {
+    try {
+      const res = await deleteSimulation(id)
+      if (res.success) {
+        projects.value = projects.value.filter(p => p.simulation_id !== id)
+      } else {
+        failCount++
+      }
+    } catch {
+      failCount++
+    }
+  }
+  if (failCount > 0) alert(`${failCount}개 삭제에 실패했습니다.`)
+}
 
 const confirmDelete = async (project) => {
   const title = getSimulationTitle(project.simulation_requirement) || project.simulation_id
@@ -855,6 +880,28 @@ onUnmounted(() => {})
 
 .project-card:hover .card-bottom-line {
   width: 100%;
+}
+
+.history-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 24px 12px;
+}
+
+.delete-all-btn {
+  padding: 5px 14px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
+  color: #EF4444;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.delete-all-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #EF4444;
 }
 
 .card-delete-btn {
