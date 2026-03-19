@@ -369,15 +369,41 @@
               <textarea
                 v-model="voteQuestion"
                 class="survey-input"
-                placeholder="예1(숫자): &quot;S&amp;P 500이 상승할 것입니다.&quot; 찬성이면 0, 반대이면 1로만 답하세요.&#10;예2(문자): &quot;경기 전망을 예, 아니오 중 하나로만 답하세요.&quot;"
-                rows="3"
+                placeholder="예) S&P 500이 올해 상승할 것으로 보십니까?"
+                rows="2"
               ></textarea>
-              <p class="vote-hint">※ 에이전트가 숫자(0, 1 …) 또는 짧은 문자열(예, 아니오 …)로만 응답하도록 안건에 명시해 주세요.</p>
+            </div>
+
+            <div class="setup-section">
+              <div class="section-header">
+                <span class="section-title">선택지</span>
+                <button class="action-link" @click="addVoteChoice">+ 추가</button>
+              </div>
+              <div class="vote-choices-editor">
+                <div
+                  v-for="(choice, idx) in voteChoices"
+                  :key="idx"
+                  class="vote-choice-edit-row"
+                >
+                  <span class="vote-choice-num">{{ idx }}</span>
+                  <input
+                    v-model="voteChoices[idx]"
+                    class="vote-choice-input"
+                    :placeholder="`선택지 ${idx} 레이블`"
+                  />
+                  <button
+                    v-if="voteChoices.length > 2"
+                    class="vote-choice-remove"
+                    @click="removeVoteChoice(idx)"
+                  >✕</button>
+                </div>
+              </div>
+              <p class="vote-hint">※ 에이전트는 위 번호(0, 1, …) 중 하나의 숫자로만 답합니다.</p>
             </div>
 
             <button
               class="survey-submit-btn"
-              :disabled="selectedAgents.size === 0 || !voteQuestion.trim() || isVoting"
+              :disabled="selectedAgents.size === 0 || !voteQuestion.trim() || voteChoices.some(c => !c.trim()) || isVoting"
               @click="submitVote"
             >
               <span v-if="isVoting" class="loading-spinner"></span>
@@ -394,17 +420,13 @@
                 <span class="results-count">{{ voteResults.length }}명 참여</span>
               </div>
               <div class="vote-stats-body">
-                <div v-if="voteIsNumeric" class="vote-average">
-                  <span class="vote-stat-label">평균값</span>
-                  <span class="vote-stat-value">{{ voteAverage }}</span>
-                </div>
                 <div class="vote-choices">
                   <div
                     v-for="(info, choice) in voteChoiceCounts"
                     :key="choice"
                     class="vote-choice-row"
                   >
-                    <span class="vote-choice-label">{{ choice }}</span>
+                    <span class="vote-choice-label">{{ voteChoiceLabel(choice) }}</span>
                     <div class="vote-choice-bar-wrap">
                       <div class="vote-choice-bar" :style="{ width: info.pct + '%' }"></div>
                     </div>
@@ -430,7 +452,7 @@
                     <span class="result-role">{{ result.profession || '직업 미상' }}</span>
                   </div>
                   <div class="vote-badge" :class="result.rawValue === null ? 'vote-badge-invalid' : 'vote-badge-valid'">
-                    {{ result.rawValue !== null ? result.rawValue : '무효' }}
+                    {{ result.rawValue !== null ? voteChoiceLabel(result.rawValue) : '무효' }}
                   </div>
                 </div>
                 <div v-if="result.rawValue === null && result.rawResponse" class="vote-invalid-response">
@@ -577,8 +599,20 @@ const isSurveying = ref(false)
 
 // Vote State
 const voteQuestion = ref('')
+const voteChoices = ref(['찬성', '반대'])
 const voteResults = ref([])
 const isVoting = ref(false)
+
+const addVoteChoice = () => voteChoices.value.push('')
+const removeVoteChoice = (idx) => voteChoices.value.splice(idx, 1)
+
+const voteChoiceLabel = (numOrKey) => {
+  const n = parseInt(numOrKey, 10)
+  if (!isNaN(n) && n >= 0 && n < voteChoices.value.length) {
+    return `${n}: ${voteChoices.value[n]}`
+  }
+  return String(numOrKey)
+}
 
 const voteChoiceCounts = computed(() => {
   const valid = voteResults.value.filter(r => r.rawValue !== null)
@@ -589,21 +623,10 @@ const voteChoiceCounts = computed(() => {
     counts[key] = (counts[key] || 0) + 1
   })
   const result = {}
-  Object.keys(counts).sort().forEach(k => {
+  Object.keys(counts).sort((a, b) => Number(a) - Number(b)).forEach(k => {
     result[k] = { count: counts[k], pct: Math.round((counts[k] / valid.length) * 100) }
   })
   return result
-})
-
-const voteIsNumeric = computed(() =>
-  voteResults.value.some(r => typeof r.rawValue === 'number')
-)
-
-const voteAverage = computed(() => {
-  const numeric = voteResults.value.filter(r => typeof r.rawValue === 'number')
-  if (numeric.length === 0) return '-'
-  const sum = numeric.reduce((acc, r) => acc + r.rawValue, 0)
-  return (sum / numeric.length).toFixed(3)
 })
 
 // Report Data
@@ -1036,10 +1059,14 @@ const submitVote = async () => {
   isVoting.value = true
   addLog(`${selectedAgents.value.size}명에게 투표 전송 중...`)
 
+  // 선택지 목록을 포함한 프롬프트 자동 생성
+  const choiceLines = voteChoices.value.map((label, i) => `${i}: ${label}`).join(', ')
+  const builtPrompt = `${voteQuestion.value.trim()}\n\nAnswer with ONLY a single digit number from the choices below. Do not write anything else.\nChoices: ${choiceLines}`
+
   try {
     const interviews = Array.from(selectedAgents.value).map(idx => ({
       agent_id: idx,
-      prompt: voteQuestion.value.trim()
+      prompt: builtPrompt
     }))
 
     const res = await interviewAgents({
@@ -1067,16 +1094,9 @@ const submitVote = async () => {
           if (matched) responseContent = matched.response || matched.answer || ''
         }
 
-        // 숫자 또는 짧은 문자열 선택지 추출 (앞뒤 구두점 제거 후 비교)
-        const firstLine = responseContent.trim().split(/[\n\r]/)[0].trim()
-        const normalized = firstLine.replace(/^[\s\p{P}]+|[\s\p{P}]+$/gu, '').trim()
-        const numMatch = normalized.match(/^-?\d+(\.\d+)?$/)
-        let rawValue = null
-        if (numMatch) {
-          rawValue = parseFloat(numMatch[0])
-        } else if (normalized.length > 0 && normalized.length <= 10) {
-          rawValue = normalized
-        }
+        // 응답에서 첫 번째 숫자만 추출 (선택지 번호)
+        const numMatch = responseContent.match(/\d+/)
+        const rawValue = numMatch ? parseInt(numMatch[0], 10) : null
 
         list.push({
           agent_id: agentIdx,
@@ -1687,6 +1707,53 @@ watch(() => props.simulationId, (newId) => {
   margin-top: 6px;
   font-size: 12px;
   color: #6B7280;
+}
+
+.vote-choices-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.vote-choice-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vote-choice-num {
+  min-width: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6366F1;
+  text-align: center;
+}
+
+.vote-choice-input {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.vote-choice-input:focus {
+  border-color: #6366F1;
+}
+
+.vote-choice-remove {
+  background: none;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+}
+
+.vote-choice-remove:hover {
+  color: #EF4444;
 }
 
 .vote-stats-card {
