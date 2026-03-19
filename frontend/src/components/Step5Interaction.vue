@@ -369,7 +369,7 @@
               <textarea
                 v-model="voteQuestion"
                 class="survey-input"
-                placeholder="예) S&P 500이 올해 상승할 것으로 보십니까?"
+                placeholder="예) 주식 시장이 한 달 내에 상승할 것으로 보십니까?"
                 rows="2"
               ></textarea>
             </div>
