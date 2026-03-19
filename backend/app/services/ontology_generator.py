@@ -9,165 +9,160 @@ from ..utils.llm_client import LLMClient
 
 
 # 온톨로지 생성을 위한 시스템 프롬프트
-ONTOLOGY_SYSTEM_PROMPT = """You are an expert knowledge graph ontology designer. Your task is to analyze given text content and simulation requirements to design entity types and relationship types suitable for **social media public opinion simulation**.
+ONTOLOGY_SYSTEM_PROMPT = """당신은 전문적인 지식 그래프 온톨로지 설계 전문가입니다. 당신의 임무는 주어진 텍스트 내용과 시뮬레이션 요구사항을 분석하여 **소셜 미디어 여론 시뮬레이션**에 적합한 엔티티 유형과 관계 유형을 설계하는 것입니다.
 
-**IMPORTANT: You must output valid JSON format data only. Do not output any other content.**
+**중요: 반드시 유효한 JSON 형식의 데이터만 출력해야 하며, 그 외의 어떠한 내용도 출력하지 마십시오.**
 
-## Core Task Background
+## 핵심 작업 배경
 
-We are building a **social media public opinion simulation system**. In this system:
-- Each entity is an "account" or "subject" that can voice opinions, interact, and spread information on social media
-- Entities influence each other, repost, comment, and respond to each other
-- We need to simulate the reactions and information propagation paths of all parties in public opinion events
+우리는 **소셜 미디어 여론 시뮬레이션 시스템**을 구축하고 있습니다. 이 시스템에서:
+- 각 엔티티는 소셜 미디어에서 발언, 상호작용, 정보 전파를 할 수 있는 '계정' 또는 '주체'입니다.
+- 엔티티들은 서로 영향을 주고받으며 전달(Retweet), 댓글, 응답 등의 활동을 합니다.
+- 여론 사건에서 각 주체의 반응과 정보 전파 경로를 시뮬레이션해야 합니다.
 
-Therefore, **entities must be real subjects that exist in reality and can voice opinions and interact on social media**:
+따라서, **엔티티는 반드시 현실에 실존하며 소셜 미디어에서 발언 및 상호작용이 가능한 주체여야 합니다.**
 
-**Can be**:
-- Specific individuals (public figures, persons involved, opinion leaders, experts, ordinary people)
-- Companies, enterprises (including their official accounts)
-- Organizations (universities, associations, NGOs, unions, etc.)
-- Government departments, regulatory bodies
-- Media organizations (newspapers, TV stations, self-media, websites)
-- Social media platforms themselves
-- Representatives of specific groups (e.g., alumni associations, fan clubs, rights protection groups, etc.)
+**허용되는 예시**:
+- 구체적인 개인 (공인, 당사자, 오피니언 리더, 전문가·학자, 일반인)
+- 기업·법인 (공식 계정 포함)
+- 조직 및 기관 (대학교, 협회, NGO, 노동조합 등)
+- 정부 부처, 규제 기관
+- 미디어 기관 (신문사, 방송사, 1인 미디어, 웹사이트)
+- 소셜 미디어 플랫폼 자체
+- 특정 집단 대표 (동문회, 팬클럽, 권익 보호 단체 등)
 
-**Cannot be**:
-- Abstract concepts (e.g., "public opinion", "emotions", "trends")
-- Topics/subjects (e.g., "academic integrity", "education reform")
-- Opinions/attitudes (e.g., "supporters", "opponents")
-- Physical objects / inanimate things (e.g., "table", "food", "rice", "meal", "dish", "product", "item", "device", "tool", "furniture", "equipment")
-- Places / locations (e.g., "park", "building", "city", "region", "country", "area", "facility")
-- Events / incidents (e.g., "accident", "ceremony", "festival", "meeting", "conference")
-- Animals, plants, or other non-human non-organizational entities
+**허용되지 않는 예시**:
+- 추상적 개념 (예: "여론", "감정", "트렌드")
+- 주제/화제 (예: "학문적 정직성", "교육 개혁")
+- 관점/태도 (예: "찬성측", "반대측")
 
-## Output Format
+## 출력 형식
 
-Please output JSON format with the following structure:
-
+다음 구조를 가진 JSON 형식을 출력하십시오:
 ```json
 {
     "entity_types": [
         {
-            "name": "EntityTypeName (English, PascalCase)",
-            "description": "Brief description (English, max 100 characters)",
+            "name": "엔티티 유형 이름 (영어, PascalCase)",
+            "description": "짧은 설명 (영어, 100자 이내)",
             "attributes": [
                 {
-                    "name": "attribute_name (English, snake_case)",
+                    "name": "속성명 (영어, snake_case)",
                     "type": "text",
-                    "description": "Attribute description"
+                    "description": "속성 설명"
                 }
             ],
-            "examples": ["Example entity 1", "Example entity 2"]
+            "examples": ["예시 엔티티 1", "예시 엔티티 2"]
         }
     ],
     "edge_types": [
         {
-            "name": "RELATIONSHIP_TYPE_NAME (English, UPPER_SNAKE_CASE)",
-            "description": "Brief description (English, max 100 characters)",
+            "name": "관계 유형 이름 (영어, UPPER_SNAKE_CASE)",
+            "description": "짧은 설명 (영어, 100자 이내)",
             "source_targets": [
-                {"source": "SourceEntityType", "target": "TargetEntityType"}
+                {"source": "소스 엔티티 유형", "target": "타깃 엔티티 유형"}
             ],
             "attributes": []
         }
     ],
-    "analysis_summary": "Brief analysis summary of the text content (Korean)"
+    "analysis_summary": "텍스트 내용에 대한 간략한 분석 설명 (한국어)"
 }
 ```
 
-## Design Guidelines (EXTREMELY IMPORTANT!)
+## 설계 가이드라인 (매우 중요!)
 
-### 1. Entity Type Design - Must Strictly Follow
+### 1. 엔티티 유형 설계 - 반드시 준수
 
-**Quantity requirement: Must have exactly 10 entity types**
+**수량 요구사항: 반드시 정확히 10개의 엔티티 유형을 정의해야 함**
 
-**Hierarchy requirements (must include both specific types and fallback types)**:
+**계층 구조 요구사항 (구체적 유형과 범용 유형을 모두 포함해야 함)**:
 
-Your 10 entity types must include the following levels:
+10개의 엔티티 유형은 반드시 다음 계층을 포함해야 합니다:
 
-A. **Fallback types (must include, placed last 2 in the list)**:
-   - `Person`: Fallback type for any individual person. When a person doesn't fit any other more specific person type, they belong here.
-   - `Organization`: Fallback type for any organization. When an organization doesn't fit any other more specific organization type, it belongs here.
+A. **범용 유형 (Fallback, 리스트의 마지막 2개에 배치)**:
+   - `Person`: 모든 자연인 개체를 위한 범용 유형. 더 구체적인 인물 유형에 해당하지 않는 개인에게 사용.
+   - `Organization`: 모든 조직 및 기관을 위한 범용 유형. 더 구체적인 조직 유형에 해당하지 않는 경우에 사용.
 
-B. **Specific types (8 types, designed based on text content)**:
-   - Design more specific types for the main roles appearing in the text
-   - Example: If the text involves academic events, you might have `Student`, `Professor`, `University`
-   - Example: If the text involves business events, you might have `Company`, `CEO`, `Employee`
+B. **구체적 유형 (8개, 텍스트 내용에 기반하여 설계)**:
+   - 텍스트에 등장하는 주요 역할에 맞춰 구체적인 유형 설계
+   - 예: 학술 관련 사건의 경우 `Student`, `Professor`, `University` 등
+   - 예: 비즈니스 관련 사건의 경우 `Company`, `CEO`, `Employee` 등
 
-**Why fallback types are needed**:
-- Various characters appear in texts, such as "primary school teachers", "passersby", "some netizen"
-- If no specific type matches, they should be categorized under `Person`
-- Similarly, small organizations, temporary groups, etc. should be categorized under `Organization`
+**범용 유형이 필요한 이유**:
+- 텍스트에는 "초·중·고 교사", "행인", "특정 네티즌" 등 다양한 인물이 등장합니다.
+- 전용 유형이 없는 경우 이들을 `Person`으로 분류하기 위함입니다.
+- 소규모 조직, 임시 단체 등은 마찬가지로 `Organization`으로 분류합니다.
 
-**Design principles for specific types**:
-- Identify frequently appearing or key role types from the text
-- Each specific type should have clear boundaries to avoid overlap
-- description must clearly explain the difference between this type and the fallback type
+**구체적 유형 설계 원칙**:
+- 텍스트에서 고빈도로 등장하거나 핵심적인 역할 유형을 식별하여 정의
+- 각 구체적 유형은 명확한 경계를 가져야 하며 중복을 피해야 함
+- description에서 해당 유형과 범용 유형의 차이를 명확히 설명해야 함
 
-### 2. Relationship Type Design
+### 2. 관계 유형 설계
 
-- Quantity: 6-10
-- Relationships should reflect real connections in social media interactions
-- Ensure relationship source_targets cover the entity types you define
+- 수량: 6~10개
+- 관계는 소셜 미디어 상의 실제 상호작용 및 연결 고리를 반영해야 함
+- `source_targets`가 정의된 엔티티 유형들을 충분히 포괄하는지 확인할 것
 
-### 3. Attribute Design
+### 3. 속성 설계
 
-- 1-3 key attributes per entity type
-- **Note**: Attribute names cannot use `name`, `uuid`, `group_id`, `created_at`, `summary` (these are system reserved words)
-- Recommended: `full_name`, `title`, `role`, `position`, `location`, `description`, etc.
+- 각 엔티티 유형별로 1~3개의 핵심 속성을 정의
+- **주의**: `name`, `uuid`, `group_id`, `created_at`, `summary`는 시스템 예약어이므로 속성명으로 사용 불가
+- 권장 속성명: `full_name`, `title`, `role`, `position`, `location`, `description` 등
 
-## Entity Type Reference
+## 엔티티 유형 참고 목록
 
-**Individual types (specific)**:
-- Student: Student
-- Professor: Professor/Scholar
-- Journalist: Reporter
-- Celebrity: Celebrity/Influencer
-- Executive: Senior executive
-- Official: Government official
-- Lawyer: Lawyer
-- Doctor: Doctor
+**개인 유형 (구체적)**:
+- Student: 학생
+- Professor: 교수/학자
+- Journalist: 기자
+- Celebrity: 연예인/인플루언서
+- Executive: 고위 임원
+- Official: 정부 관료
+- Lawyer: 변호사
+- Doctor: 의사
 
-**Individual types (fallback)**:
-- Person: Any individual (used when person doesn't fit above specific types)
+**개인 유형 (범용)**:
+- Person: 모든 자연인 (위의 구체적 유형에 해당하지 않을 때 사용)
 
-**Organization types (specific)**:
-- University: Higher education institution
-- Company: Company/enterprise
-- GovernmentAgency: Government agency
-- MediaOutlet: Media organization
-- Hospital: Hospital
-- School: Primary/secondary school
-- NGO: Non-governmental organization
+**조직 유형 (구체적)**:
+- University: 대학교
+- Company: 기업
+- GovernmentAgency: 정부 기관
+- MediaOutlet: 미디어 기관
+- Hospital: 병원
+- School: 초·중·고등학교
+- NGO: 비정부 기구
 
-**Organization types (fallback)**:
-- Organization: Any organization (used when organization doesn't fit above specific types)
+**조직 유형 (범용)**:
+- Organization: 모든 조직 기관 (위의 구체적 유형에 해당하지 않을 때 사용)
 
-## Relationship Type Reference
+## 관계 유형 참고 목록
 
-- WORKS_FOR: Works for
-- STUDIES_AT: Studies at
-- AFFILIATED_WITH: Affiliated with
-- REPRESENTS: Represents
-- REGULATES: Regulates
-- REPORTS_ON: Reports on
-- COMMENTS_ON: Comments on
-- RESPONDS_TO: Responds to
-- SUPPORTS: Supports
-- OPPOSES: Opposes
-- COLLABORATES_WITH: Collaborates with
-- COMPETES_WITH: Competes with
+- WORKS_FOR: ~에서 근무
+- STUDIES_AT: ~에 재학
+- AFFILIATED_WITH: ~에 소속
+- REPRESENTS: ~을 대표
+- REGULATES: ~을 감독·규제
+- REPORTS_ON: ~을 보도
+- COMMENTS_ON: ~에 댓글
+- RESPONDS_TO: ~에 응답
+- SUPPORTS: ~을 지지
+- OPPOSES: ~에 반대
+- COLLABORATES_WITH: ~와 협력
+- COMPETES_WITH: ~와 경쟁
 """
 
 
 class OntologyGenerator:
     """
     온톨로지 생성기
-    텍스트 내용을 분석하여 엔티티 및 관계 유형 정의 생성
+    텍스트 내용을 분석하여 엔티티 및 관계 유형 정의를 생성합니다.
     """
-
+    
     def __init__(self, llm_client: Optional[LLMClient] = None):
         self.llm_client = llm_client or LLMClient()
-
+    
     def generate(
         self,
         document_texts: List[str],
@@ -176,59 +171,60 @@ class OntologyGenerator:
     ) -> Dict[str, Any]:
         """
         온톨로지 정의 생성
-
+        
         Args:
-            document_texts: 문서 텍스트 목록
+            document_texts: 분석할 문서 텍스트 리스트
             simulation_requirement: 시뮬레이션 요구사항 설명
-            additional_context: 추가 컨텍스트
-
+            additional_context: 추가 컨텍스트 정보
+            
         Returns:
-            온톨로지 정의 (entity_types, edge_types 등)
+            온톨로지 정의 (entity_types, edge_types 등 포함)
         """
         # 사용자 메시지 구성
         user_message = self._build_user_message(
-            document_texts,
+            document_texts, 
             simulation_requirement,
             additional_context
         )
-
+        
         messages = [
             {"role": "system", "content": ONTOLOGY_SYSTEM_PROMPT},
             {"role": "user", "content": user_message}
         ]
-
+        
         # LLM 호출
         result = self.llm_client.chat_json(
             messages=messages,
             temperature=0.3,
             max_tokens=4096
         )
-
+        
         # 검증 및 후처리
         result = self._validate_and_process(result)
-
+        
         return result
-
-    # LLM에 전달할 텍스트 최대 길이 (5만 자)
+    
+    # LLM에 전달하는 텍스트 최대 길이 (5만 자)
     MAX_TEXT_LENGTH_FOR_LLM = 50000
-
+    
     def _build_user_message(
         self,
         document_texts: List[str],
         simulation_requirement: str,
         additional_context: Optional[str]
     ) -> str:
-        """사용자 메시지 구성"""
-
-        # 텍스트 합치기
+        """사용자 메시지 생성"""
+        
+        # 텍스트 병합
         combined_text = "\n\n---\n\n".join(document_texts)
         original_length = len(combined_text)
-
-        # 텍스트가 5만 자를 초과하면 자르기 (LLM에 전달되는 내용에만 영향, 그래프 구축에는 영향 없음)
+        
+        # 텍스트가 5만 자를 초과할 경우 절삭
+        # (LLM에 전달되는 내용에만 영향을 미치며, 그래프 구성에는 영향 없음)
         if len(combined_text) > self.MAX_TEXT_LENGTH_FOR_LLM:
             combined_text = combined_text[:self.MAX_TEXT_LENGTH_FOR_LLM]
-            combined_text += f"\n\n...(원문 총 {original_length}자, 온톨로지 분석을 위해 앞 {self.MAX_TEXT_LENGTH_FOR_LLM}자를 사용)..."
-
+            combined_text += f"\n\n...(원문 총 {original_length}자 중 앞부분 {self.MAX_TEXT_LENGTH_FOR_LLM}자만 온톨로지 분석에 사용되었습니다)..."
+        
         message = f"""## 시뮬레이션 요구사항
 
 {simulation_requirement}
@@ -237,26 +233,24 @@ class OntologyGenerator:
 
 {combined_text}
 """
-
+        
         if additional_context:
             message += f"""
 ## 추가 설명
 
 {additional_context}
 """
-
+        
         message += """
-Please design entity types and relationship types suitable for social public opinion simulation based on the above content.
+위 내용을 바탕으로 사회 여론 시뮬레이션에 적합한 엔티티 유형과 관계 유형을 설계하십시오.
 
-**Rules that must be followed**:
-1. Must output exactly 10 entity types
-2. The last 2 must be fallback types: Person (individual fallback) and Organization (organization fallback)
-3. The first 8 are specific types designed based on the text content
-4. All entity types must be subjects that can voice opinions in reality, not abstract concepts
-5. Attribute names cannot use reserved words like name, uuid, group_id; use full_name, org_name, etc. instead
-6. NEVER include physical objects, food, places, events, or animals as entity types — these cannot have social media accounts
+**반드시 준수해야 할 규칙**:
+1. 엔티티 유형은 정확히 10개여야 합니다.
+2. 마지막 2개는 반드시 범용 유형인 Person(개인 범용)과 Organization(조직 범용)이어야 합니다.
+3. 앞의 8개는 텍스트 내용에 기반한 구체적인 유형이어야 합니다.
+4. 모든 엔티티 유형은 현실에서 발언 가능한 주체여야 하며, 추상적 개념은 사용할 수 없습니다.
+5. 속성명에 name, uuid, group_id 등 예약어를 사용하지 말고 full_name, org_name 등으로 대체하십시오.
 """
-
         return message
     
     # 소셜 미디어 행위자가 될 수 없는 사물/장소/개념 키워드 (소문자)
