@@ -415,7 +415,7 @@
           <div v-if="voteResults.length > 0" class="survey-results">
             <div class="results-header" style="margin-bottom:10px;">
               <span class="results-title">투표 집계 결과</span>
-              <button class="action-link" @click="voteResults = []">새 투표</button>
+              <button class="new-vote-btn" @click="voteResults = []">＋ 새 투표</button>
             </div>
             <!-- 집계 통계 -->
             <div class="vote-stats-card">
@@ -1851,6 +1851,22 @@ watch(() => props.simulationId, (newId) => {
 .vote-badge-invalid {
   background: #FEE2E2;
   color: #B91C1C;
+}
+
+.new-vote-btn {
+  padding: 7px 16px;
+  background: #6366F1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.new-vote-btn:hover {
+  background: #4F46E5;
 }
 
 .vote-invalid-response {
