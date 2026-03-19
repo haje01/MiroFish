@@ -10,6 +10,7 @@ from flask import request, jsonify, send_file
 from . import simulation_bp
 from ..config import Config
 from ..services.zep_entity_reader import ZepEntityReader
+from ..services.zep_graph_memory_updater import is_system_instruction_content
 from ..services.oasis_profile_generator import OasisProfileGenerator
 from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
@@ -2027,8 +2028,13 @@ def get_simulation_posts(simulation_id: str):
                 LIMIT ? OFFSET ?
             """, (limit, offset))
             
-            posts = [dict(row) for row in cursor.fetchall()]
-            
+            all_posts = [dict(row) for row in cursor.fetchall()]
+            # OASIS 지시문이 게시물 내용에 섞인 경우 필터링
+            posts = [
+                p for p in all_posts
+                if not is_system_instruction_content(p.get("content", "") or p.get("text", ""))
+            ]
+
             cursor.execute("SELECT COUNT(*) FROM post")
             total = cursor.fetchone()[0]
             
@@ -2108,13 +2114,18 @@ def get_simulation_comments(simulation_id: str):
                     LIMIT ? OFFSET ?
                 """, (limit, offset))
             
-            comments = [dict(row) for row in cursor.fetchall()]
-            
+            all_comments = [dict(row) for row in cursor.fetchall()]
+            # OASIS 지시문이 댓글 내용에 섞인 경우 필터링
+            comments = [
+                c for c in all_comments
+                if not is_system_instruction_content(c.get("content", "") or c.get("text", ""))
+            ]
+
         except sqlite3.OperationalError:
             comments = []
-        
+
         conn.close()
-        
+
         return jsonify({
             "success": True,
             "data": {

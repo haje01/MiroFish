@@ -19,6 +19,26 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.zep_graph_memory_updater')
 
+# OASIS env_template 지시문이 게시물 내용에 섞이는 오류를 필터링하기 위한 패턴
+_OASIS_INSTRUCTION_PHRASES = [
+    "Do not limit your action",
+    "pick one you want to perform action",
+    "reflects your current inclination",
+    "I advise you to explore deeper",
+    "provide valuable insights for your audience",
+    "best reflects your current inclination",
+]
+
+
+def is_system_instruction_content(content: str) -> bool:
+    """게시물 내용이 OASIS 시스템 지시문인지 확인"""
+    if not content:
+        return False
+    for phrase in _OASIS_INSTRUCTION_PHRASES:
+        if phrase.lower() in content.lower():
+            return True
+    return False
+
 
 @dataclass
 class AgentActivity:
@@ -62,7 +82,7 @@ class AgentActivity:
     
     def _describe_create_post(self) -> str:
         content = self.action_args.get("content", "")
-        if content:
+        if content and not is_system_instruction_content(content):
             return f"게시물을 작성했습니다: 「{content}」"
         return "게시물을 작성했습니다"
 

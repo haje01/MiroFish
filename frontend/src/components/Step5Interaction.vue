@@ -143,6 +143,18 @@
               </svg>
               <span>세계에 설문 조사 보내기</span>
             </button>
+            <button
+              class="tab-pill vote-pill"
+              :class="{ active: activeTab === 'vote' }"
+              @click="activeTab = 'vote'"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 20V10"></path>
+                <path d="M12 20V4"></path>
+                <path d="M6 20v-6"></path>
+              </svg>
+              <span>세계에 투표 보내기</span>
+            </button>
           </div>
         </div>
 
@@ -311,6 +323,121 @@
           </div>
         </div>
 
+        <!-- Vote Mode -->
+        <div v-if="activeTab === 'vote'" class="survey-container">
+          <div class="survey-setup">
+            <div class="setup-section">
+              <div class="section-header">
+                <span class="section-title">투표 대상 선택</span>
+                <span class="selection-count">선택됨 {{ selectedAgents.size }} / {{ profiles.length }}</span>
+              </div>
+              <div class="agents-grid">
+                <label
+                  v-for="(agent, idx) in profiles"
+                  :key="idx"
+                  class="agent-checkbox"
+                  :class="{ checked: selectedAgents.has(idx) }"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="selectedAgents.has(idx)"
+                    @change="toggleAgentSelection(idx)"
+                  >
+                  <div class="checkbox-avatar">{{ (agent.username || 'A')[0] }}</div>
+                  <div class="checkbox-info">
+                    <span class="checkbox-name">{{ agent.username }}</span>
+                    <span class="checkbox-role">{{ agent.profession || '직업 미상' }}</span>
+                  </div>
+                  <div class="checkbox-indicator">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                </label>
+              </div>
+              <div class="selection-actions">
+                <button class="action-link" @click="selectAllAgents">전체 선택</button>
+                <span class="action-divider">|</span>
+                <button class="action-link" @click="clearAgentSelection">선택 해제</button>
+              </div>
+            </div>
+
+            <div class="setup-section">
+              <div class="section-header">
+                <span class="section-title">투표 안건</span>
+              </div>
+              <textarea
+                v-model="voteQuestion"
+                class="survey-input"
+                placeholder="예1(숫자): &quot;S&amp;P 500이 상승할 것입니다.&quot; 찬성이면 0, 반대이면 1로만 답하세요.&#10;예2(문자): &quot;경기 전망을 예, 아니오 중 하나로만 답하세요.&quot;"
+                rows="3"
+              ></textarea>
+              <p class="vote-hint">※ 에이전트가 숫자(0, 1 …) 또는 짧은 문자열(예, 아니오 …)로만 응답하도록 안건에 명시해 주세요.</p>
+            </div>
+
+            <button
+              class="survey-submit-btn"
+              :disabled="selectedAgents.size === 0 || !voteQuestion.trim() || isVoting"
+              @click="submitVote"
+            >
+              <span v-if="isVoting" class="loading-spinner"></span>
+              <span v-else>투표 보내기</span>
+            </button>
+          </div>
+
+          <!-- Vote Results -->
+          <div v-if="voteResults.length > 0" class="survey-results">
+            <!-- 집계 통계 -->
+            <div class="vote-stats-card">
+              <div class="results-header">
+                <span class="results-title">투표 집계 결과</span>
+                <span class="results-count">{{ voteResults.length }}명 참여</span>
+              </div>
+              <div class="vote-stats-body">
+                <div v-if="voteIsNumeric" class="vote-average">
+                  <span class="vote-stat-label">평균값</span>
+                  <span class="vote-stat-value">{{ voteAverage }}</span>
+                </div>
+                <div class="vote-choices">
+                  <div
+                    v-for="(info, choice) in voteChoiceCounts"
+                    :key="choice"
+                    class="vote-choice-row"
+                  >
+                    <span class="vote-choice-label">{{ choice }}</span>
+                    <div class="vote-choice-bar-wrap">
+                      <div class="vote-choice-bar" :style="{ width: info.pct + '%' }"></div>
+                    </div>
+                    <span class="vote-choice-pct">{{ info.pct }}% ({{ info.count }}명)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 개별 응답 -->
+            <div class="results-header" style="margin-top:12px;">
+              <span class="results-title">개별 응답</span>
+            </div>
+            <div class="results-list">
+              <div
+                v-for="(result, idx) in voteResults"
+                :key="idx"
+                class="result-card"
+              >
+                <div class="result-header">
+                  <div class="result-avatar">{{ (result.agent_name || 'A')[0] }}</div>
+                  <div class="result-info">
+                    <span class="result-name">{{ result.agent_name }}</span>
+                    <span class="result-role">{{ result.profession || '직업 미상' }}</span>
+                  </div>
+                  <div class="vote-badge" :class="result.rawValue === null ? 'vote-badge-invalid' : 'vote-badge-valid'">
+                    {{ result.rawValue !== null ? result.rawValue : '무효' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Survey Mode -->
         <div v-if="activeTab === 'survey'" class="survey-container">
           <!-- Survey Setup -->
@@ -444,6 +571,37 @@ const selectedAgents = ref(new Set())
 const surveyQuestion = ref('')
 const surveyResults = ref([])
 const isSurveying = ref(false)
+
+// Vote State
+const voteQuestion = ref('')
+const voteResults = ref([])
+const isVoting = ref(false)
+
+const voteChoiceCounts = computed(() => {
+  const valid = voteResults.value.filter(r => r.rawValue !== null)
+  if (valid.length === 0) return {}
+  const counts = {}
+  valid.forEach(r => {
+    const key = String(r.rawValue)
+    counts[key] = (counts[key] || 0) + 1
+  })
+  const result = {}
+  Object.keys(counts).sort().forEach(k => {
+    result[k] = { count: counts[k], pct: Math.round((counts[k] / valid.length) * 100) }
+  })
+  return result
+})
+
+const voteIsNumeric = computed(() =>
+  voteResults.value.some(r => typeof r.rawValue === 'number')
+)
+
+const voteAverage = computed(() => {
+  const numeric = voteResults.value.filter(r => typeof r.rawValue === 'number')
+  if (numeric.length === 0) return '-'
+  const sum = numeric.reduce((acc, r) => acc + r.rawValue, 0)
+  return (sum / numeric.length).toFixed(3)
+})
 
 // Report Data
 const reportOutline = ref(null)
@@ -862,9 +1020,79 @@ const submitSurvey = async () => {
       throw new Error(res.error || '요청 실패')
     }
   } catch (err) {
-    addLog(`설문 전송 실패: ${err.message}`)
+    const serverMsg = err.response?.data?.error || err.message
+    addLog(`설문 전송 실패: ${serverMsg}`)
   } finally {
     isSurveying.value = false
+  }
+}
+
+const submitVote = async () => {
+  if (selectedAgents.value.size === 0 || !voteQuestion.value.trim()) return
+
+  isVoting.value = true
+  addLog(`${selectedAgents.value.size}명에게 투표 전송 중...`)
+
+  try {
+    const interviews = Array.from(selectedAgents.value).map(idx => ({
+      agent_id: idx,
+      prompt: voteQuestion.value.trim()
+    }))
+
+    const res = await interviewAgents({
+      simulation_id: props.simulationId,
+      interviews: interviews
+    })
+
+    if (res.success && res.data) {
+      const resultData = res.data.result || res.data
+      const resultsDict = resultData.results || resultData
+
+      const list = []
+      for (const interview of interviews) {
+        const agentIdx = interview.agent_id
+        const agent = profiles.value[agentIdx]
+
+        let responseContent = ''
+        if (typeof resultsDict === 'object' && !Array.isArray(resultsDict)) {
+          const redditKey = `reddit_${agentIdx}`
+          const twitterKey = `twitter_${agentIdx}`
+          const agentResult = resultsDict[redditKey] || resultsDict[twitterKey]
+          if (agentResult) responseContent = agentResult.response || agentResult.answer || ''
+        } else if (Array.isArray(resultsDict)) {
+          const matched = resultsDict.find(r => r.agent_id === agentIdx)
+          if (matched) responseContent = matched.response || matched.answer || ''
+        }
+
+        // 숫자 또는 짧은 문자열 선택지 추출
+        const firstLine = responseContent.trim().split(/[\n\r]/)[0].trim()
+        const numMatch = firstLine.match(/^-?\d+(\.\d+)?/)
+        let rawValue = null
+        if (numMatch) {
+          rawValue = parseFloat(numMatch[0])
+        } else if (firstLine.length > 0 && firstLine.length <= 10) {
+          rawValue = firstLine
+        }
+
+        list.push({
+          agent_id: agentIdx,
+          agent_name: agent?.username || `Agent ${agentIdx}`,
+          profession: agent?.profession,
+          rawValue
+        })
+      }
+
+      voteResults.value = list
+      const validCount = list.filter(r => r.rawValue !== null).length
+      addLog(`투표 완료: ${validCount}/${list.length}명 유효 응답`)
+    } else {
+      throw new Error(res.error || '요청 실패')
+    }
+  } catch (err) {
+    const serverMsg = err.response?.data?.error || err.message
+    addLog(`투표 전송 실패: ${serverMsg}`)
+  } finally {
+    isVoting.value = false
   }
 }
 
@@ -1359,6 +1587,7 @@ watch(() => props.simulationId, (newId) => {
   gap: 6px;
   flex: 1;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .tab-pill {
@@ -1431,6 +1660,121 @@ watch(() => props.simulationId, (newId) => {
   background: #047857;
   color: #FFFFFF;
   box-shadow: 0 2px 8px rgba(4, 120, 87, 0.2);
+}
+
+.vote-pill {
+  background: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.vote-pill:hover {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.vote-pill.active {
+  background: #1D4ED8;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.2);
+}
+
+.vote-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.vote-stats-card {
+  background: #F8FAFF;
+  border: 1px solid #DBEAFE;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 8px;
+}
+
+.vote-stats-body {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vote-average {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vote-stat-label {
+  font-size: 13px;
+  color: #6B7280;
+  min-width: 48px;
+}
+
+.vote-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1D4ED8;
+}
+
+.vote-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vote-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vote-choice-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  min-width: 24px;
+  text-align: center;
+}
+
+.vote-choice-bar-wrap {
+  flex: 1;
+  height: 10px;
+  background: #E5E7EB;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.vote-choice-bar {
+  height: 100%;
+  background: #1D4ED8;
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+.vote-choice-pct {
+  font-size: 12px;
+  color: #6B7280;
+  min-width: 80px;
+  text-align: right;
+}
+
+.vote-badge {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.vote-badge-valid {
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.vote-badge-invalid {
+  background: #FEE2E2;
+  color: #B91C1C;
 }
 
 /* Interaction Header */
