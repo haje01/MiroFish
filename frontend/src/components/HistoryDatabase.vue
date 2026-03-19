@@ -889,19 +889,20 @@ onUnmounted(() => {})
 }
 
 .delete-all-btn {
-  padding: 5px 14px;
-  background: transparent;
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 6px 16px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid #EF4444;
   border-radius: 6px;
   color: #EF4444;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.2s;
 }
 
 .delete-all-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: #EF4444;
+  background: #EF4444;
+  color: #fff;
 }
 
 .card-delete-btn {
