@@ -418,11 +418,11 @@ const startSimulation = () => {
 }
 
 .main-title {
-  font-size: 4.5rem;
-  line-height: 1.2;
+  font-size: 2.8rem;
+  line-height: 1.3;
   font-weight: 500;
-  margin: 0 0 40px 0;
-  letter-spacing: -2px;
+  margin: 0 0 30px 0;
+  letter-spacing: -1px;
   color: var(--black);
 }
 
