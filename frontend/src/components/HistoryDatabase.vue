@@ -201,14 +201,10 @@ const route = useRoute()
 // 상태
 const projects = ref([])
 const loading = ref(true)
-const isExpanded = ref(false)
+const isExpanded = ref(true)  // 항상 펼쳐진 상태
 const hoveringCard = ref(null)
 const historyContainer = ref(null)
 const selectedProject = ref(null)  // 현재 선택된 프로젝트 (팝업용)
-let observer = null
-let isAnimating = false  // 애니메이션 잠금, 깜빡임 방지
-let expandDebounceTimer = null  // 디바운스 타이머
-let pendingState = null  // 실행 대기 중인 목표 상태 기록
 
 // 카드 레이아웃 설정 - 더 넓은 비율로 조정
 const CARDS_PER_ROW = 4
@@ -239,52 +235,20 @@ const containerStyle = computed(() => {
 // 카드 스타일 가져오기
 const getCardStyle = (index) => {
   const total = projects.value.length
+  const row = Math.floor(index / CARDS_PER_ROW)
+  const currentRowStart = row * CARDS_PER_ROW
+  const currentRowCards = Math.min(CARDS_PER_ROW, total - currentRowStart)
+  const rowWidth = currentRowCards * CARD_WIDTH + (currentRowCards - 1) * CARD_GAP
+  const startX = -(rowWidth / 2) + (CARD_WIDTH / 2)
+  const colInRow = index % CARDS_PER_ROW
+  const x = startX + colInRow * (CARD_WIDTH + CARD_GAP)
+  const y = 20 + row * (CARD_HEIGHT + CARD_GAP)
 
-  if (isExpanded.value) {
-    // 펼친 상태: 그리드 레이아웃
-    const transition = 'transform 700ms cubic-bezier(0.23, 1, 0.32, 1), opacity 700ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease, border-color 0.3s ease'
-
-    const col = index % CARDS_PER_ROW
-    const row = Math.floor(index / CARDS_PER_ROW)
-
-    // 현재 행의 카드 수 계산, 각 행 가운데 정렬 보장
-    const currentRowStart = row * CARDS_PER_ROW
-    const currentRowCards = Math.min(CARDS_PER_ROW, total - currentRowStart)
-
-    const rowWidth = currentRowCards * CARD_WIDTH + (currentRowCards - 1) * CARD_GAP
-
-    const startX = -(rowWidth / 2) + (CARD_WIDTH / 2)
-    const colInRow = index % CARDS_PER_ROW
-    const x = startX + colInRow * (CARD_WIDTH + CARD_GAP)
-
-    // 아래로 펼쳐지며 타이틀과의 간격 증가
-    const y = 20 + row * (CARD_HEIGHT + CARD_GAP)
-
-    return {
-      transform: `translate(${x}px, ${y}px) rotate(0deg) scale(1)`,
-      zIndex: 100 + index,
-      opacity: 1,
-      transition: transition
-    }
-  } else {
-    // 접힌 상태: 부채꼴 스택
-    const transition = 'transform 700ms cubic-bezier(0.23, 1, 0.32, 1), opacity 700ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease, border-color 0.3s ease'
-
-    const centerIndex = (total - 1) / 2
-    const offset = index - centerIndex
-
-    const x = offset * 35
-    // 시작 위치 조정, 타이틀에 가깝지만 적당한 간격 유지
-    const y = 25 + Math.abs(offset) * 8
-    const r = offset * 3
-    const s = 0.95 - Math.abs(offset) * 0.05
-    
-    return {
-      transform: `translate(${x}px, ${y}px) rotate(${r}deg) scale(${s})`,
-      zIndex: 10 + index,
-      opacity: 1,
-      transition: transition
-    }
+  return {
+    transform: `translate(${x}px, ${y}px) rotate(0deg) scale(1)`,
+    zIndex: 100 + index,
+    opacity: 1,
+    transition: 'box-shadow 0.3s ease, border-color 0.3s ease'
   }
 }
 
@@ -450,86 +414,6 @@ const loadHistory = async () => {
   }
 }
 
-// IntersectionObserver 초기화
-const initObserver = () => {
-  if (observer) {
-    observer.disconnect()
-  }
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        const shouldExpand = entry.isIntersecting
-
-        // 대기 중인 목표 상태 업데이트 (애니메이션 중이어도 최신 목표 상태 기록)
-        pendingState = shouldExpand
-
-        // 이전 디바운스 타이머 초기화 (새 스크롤 의도가 기존 것을 덮어씀)
-        if (expandDebounceTimer) {
-          clearTimeout(expandDebounceTimer)
-          expandDebounceTimer = null
-        }
-
-        // 애니메이션 중이면 상태만 기록하고 애니메이션 완료 후 처리
-        if (isAnimating) return
-
-        // 목표 상태가 현재 상태와 같으면 처리 불필요
-        if (shouldExpand === isExpanded.value) {
-          pendingState = null
-          return
-        }
-
-        // 디바운스 지연으로 상태 전환, 빠른 깜빡임 방지
-        // 펼칠 때 지연 짧음(50ms), 접을 때 지연 길게(200ms)로 안정성 향상
-        const delay = shouldExpand ? 50 : 200
-
-        expandDebounceTimer = setTimeout(() => {
-          // 애니메이션 중인지 확인
-          if (isAnimating) return
-
-          // 실행 대기 상태가 아직 유효한지 확인 (이후 스크롤로 덮어쓰였을 수 있음)
-          if (pendingState === null || pendingState === isExpanded.value) return
-
-          // 애니메이션 잠금 설정
-          isAnimating = true
-          isExpanded.value = pendingState
-          pendingState = null
-
-          // 애니메이션 완료 후 잠금 해제 및 대기 중인 상태 변경 확인
-          setTimeout(() => {
-            isAnimating = false
-
-            // 애니메이션 종료 후 새 대기 상태가 있는지 확인
-            if (pendingState !== null && pendingState !== isExpanded.value) {
-              // 잠시 지연 후 실행, 너무 빠른 전환 방지
-              expandDebounceTimer = setTimeout(() => {
-                if (pendingState !== null && pendingState !== isExpanded.value) {
-                  isAnimating = true
-                  isExpanded.value = pendingState
-                  pendingState = null
-                  setTimeout(() => {
-                    isAnimating = false
-                  }, 750)
-                }
-              }, 100)
-            }
-          }, 750)
-        }, delay)
-      })
-    },
-    {
-      // 여러 임계값 사용으로 감지를 더 부드럽게
-      threshold: [0.4, 0.6, 0.8],
-      // rootMargin 조정, 뷰포트 하단을 위로 수축하여 더 많이 스크롤해야 펼쳐지도록
-      rootMargin: '0px 0px -150px 0px'
-    }
-  )
-
-  // 관찰 시작
-  if (historyContainer.value) {
-    observer.observe(historyContainer.value)
-  }
-}
 
 // 라우트 변경 감시, 홈 복귀 시 데이터 다시 로드
 watch(() => route.path, (newPath) => {
@@ -539,14 +423,8 @@ watch(() => route.path, (newPath) => {
 })
 
 onMounted(async () => {
-  // DOM 렌더링 완료 후 데이터 로드
   await nextTick()
   await loadHistory()
-
-  // DOM 렌더링 후 옵저버 초기화 대기
-  setTimeout(() => {
-    initObserver()
-  }, 100)
 })
 
 // keep-alive 사용 시 컴포넌트 활성화 시 데이터 다시 로드
@@ -554,18 +432,7 @@ onActivated(() => {
   loadHistory()
 })
 
-onUnmounted(() => {
-  // Intersection Observer 정리
-  if (observer) {
-    observer.disconnect()
-    observer = null
-  }
-  // 디바운스 타이머 정리
-  if (expandDebounceTimer) {
-    clearTimeout(expandDebounceTimer)
-    expandDebounceTimer = null
-  }
-})
+onUnmounted(() => {})
 </script>
 
 <style scoped>
