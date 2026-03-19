@@ -433,6 +433,9 @@
                     {{ result.rawValue !== null ? result.rawValue : '무효' }}
                   </div>
                 </div>
+                <div v-if="result.rawValue === null && result.rawResponse" class="vote-invalid-response">
+                  {{ result.rawResponse }}
+                </div>
               </div>
             </div>
           </div>
@@ -1064,21 +1067,23 @@ const submitVote = async () => {
           if (matched) responseContent = matched.response || matched.answer || ''
         }
 
-        // 숫자 또는 짧은 문자열 선택지 추출
+        // 숫자 또는 짧은 문자열 선택지 추출 (앞뒤 구두점 제거 후 비교)
         const firstLine = responseContent.trim().split(/[\n\r]/)[0].trim()
-        const numMatch = firstLine.match(/^-?\d+(\.\d+)?/)
+        const normalized = firstLine.replace(/^[\s\p{P}]+|[\s\p{P}]+$/gu, '').trim()
+        const numMatch = normalized.match(/^-?\d+(\.\d+)?$/)
         let rawValue = null
         if (numMatch) {
           rawValue = parseFloat(numMatch[0])
-        } else if (firstLine.length > 0 && firstLine.length <= 10) {
-          rawValue = firstLine
+        } else if (normalized.length > 0 && normalized.length <= 10) {
+          rawValue = normalized
         }
 
         list.push({
           agent_id: agentIdx,
           agent_name: agent?.username || `Agent ${agentIdx}`,
           profession: agent?.profession,
-          rawValue
+          rawValue,
+          rawResponse: rawValue === null ? responseContent.trim() : null
         })
       }
 
@@ -1775,6 +1780,18 @@ watch(() => props.simulationId, (newId) => {
 .vote-badge-invalid {
   background: #FEE2E2;
   color: #B91C1C;
+}
+
+.vote-invalid-response {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #FFF5F5;
+  border-left: 3px solid #FCA5A5;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #7F1D1D;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Interaction Header */

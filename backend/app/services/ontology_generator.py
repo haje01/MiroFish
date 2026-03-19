@@ -322,19 +322,6 @@ Please design entity types and relationship types suitable for social public opi
         if "analysis_summary" not in result:
             result["analysis_summary"] = ""
 
-        # 사물/장소/개념 등 소셜 행위자가 될 수 없는 엔티티 타입 필터링
-        original_count = len(result["entity_types"])
-        result["entity_types"] = [
-            e for e in result["entity_types"]
-            if not self._is_inanimate_entity_type(e.get("name", ""))
-        ]
-        filtered_count = original_count - len(result["entity_types"])
-        if filtered_count > 0:
-            import logging
-            logging.getLogger('mirofish.ontology_generator').warning(
-                f"사물/장소/개념으로 판단된 엔티티 타입 {filtered_count}개 제거됨"
-            )
-
         # 엔티티 유형 검증
         for entity in result["entity_types"]:
             if "attributes" not in entity:

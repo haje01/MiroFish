@@ -300,6 +300,20 @@ class SimulationManager:
                 self._save_simulation_state(state)
                 return state
 
+            # 사물/장소/개념 등 소셜 행위자 불가 엔티티 필터링 (시뮬레이션 전용)
+            _checker = OasisProfileGenerator.__new__(OasisProfileGenerator)
+            social_entities = []
+            skipped = []
+            for e in filtered.entities:
+                etype = e.get_entity_type() or "Entity"
+                if _checker._is_inanimate_entity_type(etype):
+                    skipped.append(f"{e.name}({etype})")
+                else:
+                    social_entities.append(e)
+            if skipped:
+                logger.warning(f"시뮬레이션 제외 엔티티 {len(skipped)}개: {', '.join(skipped)}")
+            filtered.entities = social_entities
+
             # ========== 단계2: Agent Profile 생성 ==========
             total_entities = len(filtered.entities)
 

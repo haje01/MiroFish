@@ -1584,15 +1584,24 @@ class SimulationRunner:
         if not agent_configs:
             raise ValueError(f"시뮬레이션 설정에 Agent가 없습니다: {simulation_id}")
 
-        # 일괄 인터뷰 목록 구성
+        # 일괄 인터뷰 목록 구성 (사물/장소/개념 에이전트 제외)
+        from .oasis_profile_generator import OasisProfileGenerator
+        _checker = OasisProfileGenerator.__new__(OasisProfileGenerator)
         interviews = []
+        skipped_interview = []
         for agent_config in agent_configs:
             agent_id = agent_config.get("agent_id")
+            entity_type = agent_config.get("entity_type", "")
             if agent_id is not None:
-                interviews.append({
-                    "agent_id": agent_id,
-                    "prompt": prompt
-                })
+                if entity_type and _checker._is_inanimate_entity_type(entity_type):
+                    skipped_interview.append(f"{agent_config.get('name', agent_id)}({entity_type})")
+                else:
+                    interviews.append({
+                        "agent_id": agent_id,
+                        "prompt": prompt
+                    })
+        if skipped_interview:
+            logger.info(f"인터뷰 제외 엔티티 {len(skipped_interview)}개: {', '.join(skipped_interview)}")
 
         logger.info(f"전체 Interview 명령 전송: simulation_id={simulation_id}, agent_count={len(interviews)}, platform={platform}")
 
