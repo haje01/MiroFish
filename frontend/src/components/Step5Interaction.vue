@@ -325,7 +325,7 @@
 
         <!-- Vote Mode -->
         <div v-if="activeTab === 'vote'" class="survey-container">
-          <div class="survey-setup">
+          <div v-if="voteResults.length === 0" class="survey-setup">
             <div class="setup-section">
               <div class="section-header">
                 <span class="section-title">투표 대상 선택</span>
@@ -413,10 +413,14 @@
 
           <!-- Vote Results -->
           <div v-if="voteResults.length > 0" class="survey-results">
+            <div class="results-header" style="margin-bottom:10px;">
+              <span class="results-title">투표 집계 결과</span>
+              <button class="action-link" @click="voteResults = []">새 투표</button>
+            </div>
             <!-- 집계 통계 -->
             <div class="vote-stats-card">
               <div class="results-header">
-                <span class="results-title">투표 집계 결과</span>
+                <span class="results-title">{{ voteQuestion }}</span>
                 <span class="results-count">{{ voteResults.length }}명 참여</span>
               </div>
               <div class="vote-stats-body">
