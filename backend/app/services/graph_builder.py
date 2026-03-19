@@ -216,10 +216,23 @@ class GraphBuilderService:
                 return f"entity_{attr_name}"
             return attr_name
 
+        def to_pascal_case(name: str) -> str:
+            """임의의 문자열을 PascalCase로 변환 (영숫자만 허용)"""
+            import re
+            # 공백·언더스코어·하이픈·점 등을 단어 경계로 분리
+            words = re.split(r'[\s_\-\.]+', name.strip())
+            pascal = ''.join(w.capitalize() for w in words if w)
+            # 영숫자 이외 문자 제거
+            pascal = re.sub(r'[^A-Za-z0-9]', '', pascal)
+            # 첫 글자가 숫자면 앞에 'T' 추가 (Zep 규칙)
+            if pascal and pascal[0].isdigit():
+                pascal = 'T' + pascal
+            return pascal or 'Entity'
+
         # 동적으로 엔티티 타입 생성
         entity_types = {}
         for entity_def in ontology.get("entity_types", []):
-            name = entity_def["name"]
+            name = to_pascal_case(entity_def["name"])
             description = entity_def.get("description", f"A {name} entity.")
 
             # 속성 딕셔너리 및 타입 어노테이션 생성 (Pydantic v2 필요)
@@ -243,7 +256,7 @@ class GraphBuilderService:
         # 동적으로 엣지 타입 생성
         edge_definitions = {}
         for edge_def in ontology.get("edge_types", []):
-            name = edge_def["name"]
+            name = edge_def["name"]  # 엣지는 키로 원본 사용, 클래스명만 PascalCase 변환
             description = edge_def.get("description", f"A {name} relationship.")
 
             # 속성 딕셔너리 및 타입 어노테이션 생성
@@ -269,8 +282,8 @@ class GraphBuilderService:
             for st in edge_def.get("source_targets", []):
                 source_targets.append(
                     EntityEdgeSourceTarget(
-                        source=st.get("source", "Entity"),
-                        target=st.get("target", "Entity")
+                        source=to_pascal_case(st.get("source", "Entity")),
+                        target=to_pascal_case(st.get("target", "Entity"))
                     )
                 )
 
