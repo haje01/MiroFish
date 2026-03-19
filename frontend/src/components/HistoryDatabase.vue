@@ -96,6 +96,13 @@
         
         <!-- 하단 장식선 (hover 시 펼쳐짐) -->
         <div class="card-bottom-line"></div>
+
+        <!-- 삭제 버튼 (hover 시 표시) -->
+        <button
+          class="card-delete-btn"
+          title="삭제"
+          @click.stop="confirmDelete(project)"
+        >✕</button>
       </div>
     </div>
 
@@ -193,7 +200,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, onActivated, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { getSimulationHistory } from '../api/simulation'
+import { getSimulationHistory, deleteSimulation } from '../api/simulation'
 
 const router = useRouter()
 const route = useRoute()
@@ -414,6 +421,22 @@ const loadHistory = async () => {
   }
 }
 
+
+const confirmDelete = async (project) => {
+  const title = getSimulationTitle(project.simulation_requirement) || project.simulation_id
+  if (!confirm(`"${title}" 시뮬레이션을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return
+
+  try {
+    const res = await deleteSimulation(project.simulation_id)
+    if (res.success) {
+      projects.value = projects.value.filter(p => p.simulation_id !== project.simulation_id)
+    } else {
+      alert(`삭제 실패: ${res.error || '알 수 없는 오류'}`)
+    }
+  } catch (e) {
+    alert(`삭제 중 오류가 발생했습니다.`)
+  }
+}
 
 // 라우트 변경 감시, 홈 복귀 시 데이터 다시 로드
 watch(() => route.path, (newPath) => {
@@ -832,6 +855,36 @@ onUnmounted(() => {})
 
 .project-card:hover .card-bottom-line {
   width: 100%;
+}
+
+.card-delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239, 68, 68, 0.0);
+  color: transparent;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+  z-index: 10;
+}
+
+.project-card:hover .card-delete-btn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+}
+
+.card-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.9) !important;
+  color: #fff !important;
 }
 
 /* 빈 상태 */

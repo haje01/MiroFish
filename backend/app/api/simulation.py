@@ -983,6 +983,30 @@ def get_simulation_history():
         }), 500
 
 
+@simulation_bp.route('/<simulation_id>', methods=['DELETE'])
+def delete_simulation(simulation_id: str):
+    """
+    시뮬레이션 삭제
+
+    시뮬레이션 디렉토리 전체를 삭제합니다.
+    """
+    try:
+        import shutil
+        manager = SimulationManager()
+        sim_dir = os.path.join(manager.SIMULATION_DATA_DIR, simulation_id)
+
+        if not os.path.exists(sim_dir):
+            return jsonify({"success": False, "error": "시뮬레이션을 찾을 수 없습니다"}), 404
+
+        shutil.rmtree(sim_dir)
+        logger.info(f"시뮬레이션 삭제 완료: {simulation_id}")
+        return jsonify({"success": True, "simulation_id": simulation_id})
+
+    except Exception as e:
+        logger.error(f"시뮬레이션 삭제 실패: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @simulation_bp.route('/<simulation_id>/profiles', methods=['GET'])
 def get_simulation_profiles(simulation_id: str):
     """
